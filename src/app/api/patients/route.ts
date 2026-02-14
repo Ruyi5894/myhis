@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取患者列表（住院+门诊）
+// 获取门诊就诊列表
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -36,114 +36,71 @@ export async function GET(request: Request) {
     const pool = await getPool();
     const offset = (page - 1) * pageSize;
     
-    let zyDateCondition = '';
-    let mzDateCondition = '';
+    let dateCondition = '';
     
     if (startDate && endDate) {
-      zyDateCondition = ` AND ryrq >= '${startDate} 00:00:00' AND ryrq <= '${endDate} 23:59:59'`;
-      mzDateCondition = ` AND y.zdrq >= '${startDate} 00:00:00' AND y.zdrq <= '${endDate} 23:59:59'`;
+      dateCondition = ` AND y.zdrq >= '${startDate} 00:00:00' AND y.zdrq <= '${endDate} 23:59:59'`;
     } else if (startDate) {
-      zyDateCondition = ` AND ryrq >= '${startDate} 00:00:00'`;
-      mzDateCondition = ` AND y.zdrq >= '${startDate} 00:00:00'`;
+      dateCondition = ` AND y.zdrq >= '${startDate} 00:00:00'`;
     } else if (endDate) {
-      zyDateCondition = ` AND ryrq <= '${endDate} 23:59:59'`;
-      mzDateCondition = ` AND y.zdrq <= '${endDate} 23:59:59'`;
+      dateCondition = ` AND y.zdrq <= '${endDate} 23:59:59'`;
     }
     
-    let zyKeywordCondition = '';
-    let mzKeywordCondition = '';
+    let keywordCondition = '';
     if (keyword) {
-      zyKeywordCondition = ` AND (xm LIKE '%${keyword}%' OR kh LIKE '%${keyword}%' OR zyh LIKE '%${keyword}%')`;
-      mzKeywordCondition = ` AND (b.xm LIKE '%${keyword}%' OR y.Zdmc LIKE '%${keyword}%' OR y.xbs LIKE '%${keyword}%')`;
+      keywordCondition = ` AND (b.xm LIKE '%${keyword}%' OR y.Zdmc LIKE '%${keyword}%' OR y.xbs LIKE '%${keyword}%' OR y.zlh = '${keyword}')`;
     }
 
-    let results: any[] = [];
-    let totalInpatient = 0;
-    let totalOutpatient = 0;
-
-    // 住院患者查询
-    if (patientType === 'all' || patientType === 'inpatient') {
-      const zyQuery = `
-        SELECT * FROM (
-          SELECT 
-            ROW_NUMBER() OVER (ORDER BY ryrq DESC) AS RowNum,
-            zlh, jbxxbh, kh, knxx, zyh, xm, xb, csny, '' AS sfz, pzh, 
-            ryrq, cyrq, ryzd, ryks, rybq, djzt, 
-            '住院' AS jzlx,
-            DATEDIFF(DAY, ryrq, ISNULL(cyrq, GETDATE())) AS days,
-            CASE WHEN cyrq IS NULL THEN '在院' ELSE '已出院' END AS status
-          FROM ZY_BRZLXXK
-          WHERE 1=1 ${zyDateCondition} ${zyKeywordCondition}
-        ) AS ZYPage
-        WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
-      `;
-      const zyResult = await pool.request().query(zyQuery);
-      results = [...results, ...zyResult.recordset];
-      
-      const zyCountQuery = `SELECT COUNT(*) as cnt FROM ZY_BRZLXXK WHERE 1=1 ${zyDateCondition} ${zyKeywordCondition}`;
-      const zyCount = await pool.request().query(zyCountQuery);
-      totalInpatient = zyCount.recordset[0].cnt;
-    }
-
-    // 门诊患者查询 - 使用 MZYSZ_YSZDK 获取完整病史
-    if (patientType === 'all' || patientType === 'outpatient') {
-      const mzQuery = `
-        SELECT * FROM (
-          SELECT 
-            ROW_NUMBER() OVER (ORDER BY y.zdrq DESC) AS RowNum,
-            y.zlh AS zlh, 
-            y.jbxxbh AS jbxxbh, 
-            '' AS kh, 
-            '' AS knxx, 
-            '' AS zyh, 
-            ISNULL(b.xm, '患者' + CAST(y.jbxxbh AS VARCHAR(20))) AS xm, 
-            ISNULL(b.xb, 0) AS xb, 
-            b.csny, 
-            ISNULL(b.sfz, '') AS sfz, 
-            '' AS pzh,
-            y.zdrq AS ryrq, 
-            NULL AS cyrq, 
-            y.Zdmc AS ryzd, 
-            y.Ssy AS ryks, 
-            0 AS rybq, 
-            y.Jlzt AS djzt,
-            '门诊' AS jzlx,
-            0 AS days,
-            '已完成' AS status,
-            y.xbs AS zhushu,
-            y.Zddm AS zddm,
-            y.Szy AS szy,
-            b.lxdh AS lxdh,
-            b.dz AS dz
-          FROM MZYSZ_YSZDK y
-          LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
-          WHERE 1=1 ${mzDateCondition} ${mzKeywordCondition}
-        ) AS MZPage
-        WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
-      `;
-      const mzResult = await pool.request().query(mzQuery);
-      results = [...results, ...mzResult.recordset];
-      
-      const mzCountQuery = `
-        SELECT COUNT(*) as cnt FROM MZYSZ_YSZDK y
+    // 门诊就诊查询 - 关联 MZYSZ_YSZDK (病史) + GH_MXXXK (挂号) + BC_BRXXK (患者档案)
+    const mzQuery = `
+      SELECT * FROM (
+        SELECT 
+          ROW_NUMBER() OVER (ORDER BY y.zdrq DESC) AS RowNum,
+          y.zlh AS zlh,                         -- 挂号ID
+          y.jbxxbh AS jbxxbh,                  -- 档案ID
+          ISNULL(b.xm, '未知') AS xm,          -- 姓名
+          ISNULL(b.xb, 0) AS xb,               -- 性别
+          b.csny,                              -- 出生年月
+          b.sfz,                               -- 身份证
+          b.lxdh,                              -- 电话
+          b.dz,                                -- 地址
+          y.zdrq AS ryrq,                      -- 就诊日期
+          y.Zdmc AS ryzd,                      -- 诊断名称
+          y.Zddm AS zddm,                      -- 诊断代码
+          y.xbs AS zhushu,                      -- 主诉/现病史
+          y.Szy AS szy,                        -- 医生
+          y.Ssy AS ssy,                        -- 科室
+          g.Fymc AS fymc,                      -- 挂号费项目
+          g.Ghf AS ghf,                        -- 挂号费
+          '门诊' AS jzlx,
+          '已完成' AS status,
+          y.Jlzt AS jlzt
+        FROM MZYSZ_YSZDK y
+        LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
         LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
-        WHERE 1=1 ${mzDateCondition} ${mzKeywordCondition}
-      `;
-      const mzCount = await pool.request().query(mzCountQuery);
-      totalOutpatient = mzCount.recordset[0].cnt;
-    }
-
-    results.sort((a, b) => new Date(b.ryrq).getTime() - new Date(a.ryrq).getTime());
+        WHERE 1=1 ${dateCondition} ${keywordCondition}
+      ) AS MZPage
+      WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
+    `;
+    
+    const mzResult = await pool.request().query(mzQuery);
+    
+    // 获取总数
+    const countQuery = `
+      SELECT COUNT(*) as cnt 
+      FROM MZYSZ_YSZDK y
+      LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
+      WHERE 1=1 ${dateCondition} ${keywordCondition}
+    `;
+    const countResult = await pool.request().query(countQuery);
+    const total = countResult.recordset[0].cnt;
 
     return NextResponse.json({
       success: true,
-      data: results,
-      total: patientType === 'inpatient' ? totalInpatient : 
-             patientType === 'outpatient' ? totalOutpatient : 
-             totalInpatient + totalOutpatient,
+      data: mzResult.recordset,
+      total: total,
       stats: {
-        inpatient: totalInpatient,
-        outpatient: totalOutpatient,
+        outpatient: total,
       },
       page,
       pageSize,

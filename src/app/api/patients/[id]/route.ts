@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取患者详情
+// 获取门诊就诊详情
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,56 +31,31 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 住院详情 - ZY_BRZLXXK
-    const zyQuery = `
-      SELECT TOP 1 
-        zlh, jbxxbh, kh, knxx, zyh, xm, xb, csny, sfz, pzh,
-        ztqkdm, zhbz, jzlx, tsrybz, brlx,
-        ryrq, ryfs, ryzd, ryks, rybq, ryqk,
-        cyrq, cyfs, klb, czy, djzt, Dqbz, Zycs, YBJFLX, XZQ, sbryzd, Cxrq,
-        '住院' AS jzlx_text,
-        CASE WHEN cyrq IS NULL THEN '在院' ELSE '已出院' END AS status,
-        DATEDIFF(DAY, ryrq, ISNULL(cyrq, GETDATE())) AS days
-      FROM ZY_BRZLXXK
-      WHERE zlh = ${id} OR zyh = '${id}'
-    `;
-    
-    const zyResult = await pool.request().query(zyQuery);
-    
-    if (zyResult.recordset.length > 0) {
-      const patient = zyResult.recordset[0];
-      
-      // 住院费用
-      const fyQuery = `
-        SELECT TOP 20 
-          Fph, Jsxh, Jssj, Zje, Xjzje, Jzje
-        FROM ZY_FPXXK
-        WHERE zlh = ${id}
-        ORDER BY Jssj DESC
-      `;
-      const fyResult = await pool.request().query(fyQuery);
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          type: 'inpatient',
-          basic: patient,
-          fees: fyResult.recordset,
-          medicalRecords: [],
-        },
-      });
-    }
-    
-    // 门诊详情 - 使用 MZYSZ_YSZDK
+    // 门诊详情 - 使用 MZYSZ_YSZDK (病史) + GH_MXXXK (挂号) + BC_BRXXK (患者档案)
     const mzQuery = `
       SELECT TOP 1 
-        y.zlh, y.jbxxbh, b.xm, b.xb, b.csny, b.sfz, b.lxdh, b.dz,
-        y.zdrq AS ryrq, y.Zdmc AS ryzd, y.Zddm AS zddm, y.xbs AS zhushu,
-        y.Ssy AS ryks, y.Szy AS szy, y.Jlzt AS djzt,
+        y.zlh AS zlh,
+        y.jbxxbh AS jbxxbh,
+        ISNULL(b.xm, '未知') AS xm,
+        ISNULL(b.xb, 0) AS xb,
+        b.csny,
+        b.sfz,
+        b.lxdh,
+        b.dz,
+        y.zdrq AS ryrq,
+        y.Zdmc AS ryzd,
+        y.Zddm AS zddm,
+        y.xbs AS zhushu,
+        y.Szy AS szy,
+        y.Ssy AS ssy,
+        g.Fymc,
+        g.Ghf,
+        y.Jlzt,
         '门诊' AS jzlx_text,
         '已完成' AS status
       FROM MZYSZ_YSZDK y
-      LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh
+      LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
+      LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
       WHERE y.zlh = ${id}
       ORDER BY y.zdrq DESC
     `;
@@ -88,41 +63,38 @@ export async function GET(
     const mzResult = await pool.request().query(mzQuery);
     
     if (mzResult.recordset.length > 0) {
-      // 获取该患者的所有门诊记录
+      // 获取该患者的所有就诊记录
       const allRecordsQuery = `
-        SELECT TOP 50
-          y.zdrq AS ryrq, y.Zdmc AS ryzd, y.Zddm AS zddm, y.xbs AS zhushu,
-          y.Ssy AS ryks, y.Szy AS szy
+        SELECT TOP 100
+          y.zdrq AS ryrq,
+          y.Zdmc AS ryzd,
+          y.Zddm AS zddm,
+          y.xbs AS zhushu,
+          y.Szy AS szy,
+          y.Ssy AS ssy,
+          g.Fymc,
+          g.Ghf
         FROM MZYSZ_YSZDK y
+        LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
         WHERE y.zlh = ${id}
         ORDER BY y.zdrq DESC
       `;
       const allRecords = await pool.request().query(allRecordsQuery);
-      
-      // 门诊费用 - 从 GH_MXXXK
-      const fyQuery = `
-        SELECT TOP 20 
-          Fph, Ghrq AS Jssj, Ghf AS Zje, Zlf AS Xjzje
-        FROM GH_MXXXK
-        WHERE zlh = ${id}
-        ORDER BY Ghrq DESC
-      `;
-      const fyResult = await pool.request().query(fyQuery);
       
       return NextResponse.json({
         success: true,
         data: {
           type: 'outpatient',
           basic: mzResult.recordset[0],
-          fees: fyResult.recordset,
           medicalRecords: allRecords.recordset,
+          fees: [],
         },
       });
     }
     
     return NextResponse.json({
       success: false,
-      error: '未找到该患者记录',
+      error: '未找到该就诊记录',
     });
     
   } catch (error) {
