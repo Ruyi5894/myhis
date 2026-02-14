@@ -10,11 +10,6 @@ const dbConfig = {
     encrypt: false,
     trustServerCertificate: true,
   },
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000,
-  },
 };
 
 let pool: sql.ConnectionPool | null = null;
@@ -46,13 +41,13 @@ export async function GET(request: Request) {
     
     if (startDate && endDate) {
       zyDateCondition = ` AND ryrq >= '${startDate} 00:00:00' AND ryrq <= '${endDate} 23:59:59'`;
-      mzDateCondition = ` AND zdrq >= '${startDate} 00:00:00' AND zdrq <= '${endDate} 23:59:59'`;
+      mzDateCondition = ` AND y.zdrq >= '${startDate} 00:00:00' AND y.zdrq <= '${endDate} 23:59:59'`;
     } else if (startDate) {
       zyDateCondition = ` AND ryrq >= '${startDate} 00:00:00'`;
-      mzDateCondition = ` AND zdrq >= '${startDate} 00:00:00'`;
+      mzDateCondition = ` AND y.zdrq >= '${startDate} 00:00:00'`;
     } else if (endDate) {
       zyDateCondition = ` AND ryrq <= '${endDate} 23:59:59'`;
-      mzDateCondition = ` AND zdrq <= '${endDate} 23:59:59'`;
+      mzDateCondition = ` AND y.zdrq <= '${endDate} 23:59:59'`;
     }
     
     let zyKeywordCondition = '';
@@ -101,7 +96,7 @@ export async function GET(request: Request) {
             '' AS kh, 
             '' AS knxx, 
             '' AS zyh, 
-            ISNULL(b.xm, '未知患者') AS xm, 
+            ISNULL(b.xm, '患者' + CAST(y.jbxxbh AS VARCHAR(20))) AS xm, 
             ISNULL(b.xb, 0) AS xb, 
             b.csny, 
             ISNULL(b.sfz, '') AS sfz, 
@@ -115,13 +110,13 @@ export async function GET(request: Request) {
             '门诊' AS jzlx,
             0 AS days,
             '已完成' AS status,
-            y.xbs AS zhushu,    -- 主诉/现病史
-            y.Zddm AS zddm,     -- 诊断代码
-            y.Szy AS szy,       -- 主治医生
+            y.xbs AS zhushu,
+            y.Zddm AS zddm,
+            y.Szy AS szy,
             b.lxdh AS lxdh,
             b.dz AS dz
           FROM MZYSZ_YSZDK y
-          LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh
+          LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
           WHERE 1=1 ${mzDateCondition} ${mzKeywordCondition}
         ) AS MZPage
         WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
@@ -131,7 +126,7 @@ export async function GET(request: Request) {
       
       const mzCountQuery = `
         SELECT COUNT(*) as cnt FROM MZYSZ_YSZDK y
-        LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh
+        LEFT JOIN BC_BRXXK b ON y.jbxxbh = b.jbxxbh AND y.jbxxbh > 0
         WHERE 1=1 ${mzDateCondition} ${mzKeywordCondition}
       `;
       const mzCount = await pool.request().query(mzCountQuery);
