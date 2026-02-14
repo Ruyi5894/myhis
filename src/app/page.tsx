@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { 
   Users, Activity, Calendar, TrendingUp, Search, 
   FileText, Download, RefreshCw, Hospital,
-  Clock, AlertCircle, CheckCircle, BarChart3
+  Clock, AlertCircle, CheckCircle, BarChart3,
+  ChevronLeft, ChevronRight, Filter
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -34,6 +35,8 @@ interface Patient {
   ryks: number;
   jzlx: string;
   djzt: number;
+  days: number;
+  status: string;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -43,32 +46,43 @@ export default function Home() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('patients');
+  
+  // 日期范围筛选
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  
+  const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
+  const [patientType, setPatientType] = useState('all');
+  
+  // 分页
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 50;
 
   useEffect(() => {
-    fetchStats();
     fetchPatients();
-  }, []);
+  }, [startDate, endDate, patientType, page]);
 
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/stats');
-      const data = await res.json();
-      if (data.success) {
-        setStats(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    }
-  };
-
-  const fetchPatients = async (keyword = '') => {
+  const fetchPatients = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/patients?keyword=${keyword}&pageSize=20`);
+      const params = new URLSearchParams({
+        keyword: searchKeyword,
+        startDate,
+        endDate,
+        type: patientType,
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+      });
+      const res = await fetch(`/api/patients?${params}`);
       const data = await res.json();
       if (data.success) {
         setPatients(data.data);
+        setTotal(data.total);
+      } else {
+        console.error('Error:', data.error);
       }
     } catch (error) {
       console.error('Failed to fetch patients:', error);
@@ -78,7 +92,8 @@ export default function Home() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPatients(searchKeyword);
+    setPage(1);
+    fetchPatients();
   };
 
   const formatDate = (dateStr: string) => {
@@ -90,10 +105,34 @@ export default function Home() {
     return xb === 1 ? '男' : xb === 0 ? '女' : '未知';
   };
 
-  const getStatus = (djzt: number) => {
-    if (djzt === 1) return { text: '在院', color: 'text-green-600', bg: 'bg-green-100' };
-    if (djzt === 0) return { text: '出院', color: 'text-gray-600', bg: 'bg-gray-100' };
-    return { text: '未知', color: 'text-yellow-600', bg: 'bg-yellow-100' };
+  // 快捷日期按钮
+  const setQuickDateRange = (range: string) => {
+    const today = new Date();
+    let start: Date;
+    let end: Date = today;
+    
+    switch (range) {
+      case 'today':
+        start = today;
+        break;
+      case 'week':
+        start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      case 'quarter':
+        start = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
+        break;
+      case 'year':
+        start = new Date(today.getFullYear(), 0, 1);
+        break;
+      default:
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
   };
 
   return (
@@ -113,7 +152,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => { fetchStats(); fetchPatients(searchKeyword); }}
+                onClick={() => fetchPatients()}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <RefreshCw className="w-5 h-5 text-slate-600" />
@@ -156,154 +195,70 @@ export default function Home() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && stats && (
-          <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">住院患者总数</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">
-                      {stats.totalInpatients.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">门诊就诊总数</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">
-                      {stats.totalOutpatients.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Activity className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">今日入院</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">
-                      {stats.todayAdmissions}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Calendar className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">今日出院</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">
-                      {stats.todayDischarges}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <TrendingUp className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Monthly Trends */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">月度入院趋势</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={stats.monthlyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="count" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2}
-                        dot={{ fill: '#3b82f6' }}
-                        name="入院人数"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Diagnosis Distribution */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">诊断分布 (Top 10)</h3>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.diagnosisDistribution.slice(0, 10)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" tick={{ fontSize: 12 }} />
-                      <YAxis 
-                        dataKey="diagnosis" 
-                        type="category" 
-                        width={100}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} name="病例数" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-8 h-8" />
-                  <div>
-                    <p className="text-blue-100">病历完整率</p>
-                    <p className="text-3xl font-bold">87.5%</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-8 h-8" />
-                  <div>
-                    <p className="text-green-100">待审核病历</p>
-                    <p className="text-3xl font-bold">23</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-8 h-8" />
-                  <div>
-                    <p className="text-purple-100">平均评分</p>
-                    <p className="text-3xl font-bold">92.3</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Patients Tab */}
+        {/* Patients Tab - 患者查询 */}
         {activeTab === 'patients' && (
           <div className="space-y-6">
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-              <div className="flex gap-4">
+            {/* 搜索和筛选区域 */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+              {/* 快速日期选择 */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Filter className="w-4 h-4 text-slate-500" />
+                <span className="text-sm text-slate-600">快速筛选：</span>
+                {[
+                  { label: '今日', value: 'today' },
+                  { label: '最近7天', value: 'week' },
+                  { label: '本月', value: 'month' },
+                  { label: '本季度', value: 'quarter' },
+                  { label: '本年', value: 'year' },
+                ].map((btn) => (
+                  <button
+                    key={btn.value}
+                    onClick={() => setQuickDateRange(btn.value)}
+                    className="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+              
+              {/* 日期范围输入 */}
+              <div className="flex flex-wrap items-end gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-slate-600">开始日期：</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-slate-600">结束日期：</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+                
+                {/* 患者类型筛选 */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-slate-600">类型：</label>
+                  <select
+                    value={patientType}
+                    onChange={(e) => { setPatientType(e.target.value); setPage(1); }}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="all">全部</option>
+                    <option value="inpatient">住院</option>
+                    <option value="outpatient">门诊</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* 关键词搜索 */}
+              <form onSubmit={handleSearch} className="flex gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
@@ -320,67 +275,162 @@ export default function Home() {
                 >
                   搜索
                 </button>
-              </div>
-            </form>
+              </form>
+            </div>
 
-            {/* Patients Table */}
+            {/* 统计信息 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">时间范围</p>
+                    <p className="text-sm font-semibold text-slate-800">{startDate} 至 {endDate}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Users className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">住院记录</p>
+                    <p className="text-sm font-semibold text-slate-800">{patients.filter(p => p.jzlx === '住院').length} 条</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Activity className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">门诊记录</p>
+                    <p className="text-sm font-semibold text-slate-800">{patients.filter(p => p.jzlx === '门诊').length} 条</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">记录总数</p>
+                    <p className="text-sm font-semibold text-slate-800">{patients.length} 条</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 患者列表 */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <h3 className="font-semibold text-slate-800">病史记录列表</h3>
+                <p className="text-sm text-slate-500">显示时间范围内的所有病史记录</p>
+              </div>
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">姓名</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">性别</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">出生年月</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">卡号</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">住院号</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">入院日期</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">入院诊断</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">类型</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-600">状态</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">类型</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">姓名</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">性别</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">出生年月</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">卡号</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">住院号</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">入院日期</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">出院日期</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">天数</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">入院诊断</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600">状态</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                      <td colSpan={11} className="px-4 py-12 text-center text-slate-500">
                         加载中...
                       </td>
                     </tr>
                   ) : patients.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
-                        未找到患者记录
+                      <td colSpan={11} className="px-4 py-12 text-center text-slate-500">
+                        未找到病史记录
                       </td>
                     </tr>
                   ) : (
-                    patients.map((patient, idx) => {
-                      const status = getStatus(patient.djzt);
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-slate-800">{patient.xm}</td>
-                          <td className="px-6 py-4 text-slate-600">{getGender(patient.xb)}</td>
-                          <td className="px-6 py-4 text-slate-600">{formatDate(patient.csny)}</td>
-                          <td className="px-6 py-4 text-slate-600 font-mono text-sm">{patient.kh}</td>
-                          <td className="px-6 py-4 text-slate-600 font-mono text-sm">{patient.zyh || '-'}</td>
-                          <td className="px-6 py-4 text-slate-600">{formatDate(patient.ryrq)}</td>
-                          <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{patient.ryzd || '-'}</td>
-                          <td className="px-6 py-4">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                              {patient.jzlx}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 ${status.bg} ${status.color} text-xs font-medium rounded`}>
-                              {status.text}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    patients.map((patient, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${
+                            patient.jzlx === '住院' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {patient.jzlx}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-800">{patient.xm}</td>
+                        <td className="px-4 py-3 text-slate-600">{getGender(patient.xb)}</td>
+                        <td className="px-4 py-3 text-slate-600 text-sm">{formatDate(patient.csny)}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono text-sm">{patient.kh?.trim() || '-'}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono text-sm">{patient.zyh?.trim() || '-'}</td>
+                        <td className="px-4 py-3 text-slate-600 text-sm">{formatDate(patient.ryrq)}</td>
+                        <td className="px-4 py-3 text-slate-600 text-sm">{formatDate(patient.cyrq)}</td>
+                        <td className="px-4 py-3 text-slate-600 text-sm">{patient.days || '-'}</td>
+                        <td className="px-4 py-3 text-slate-600 max-w-xs truncate text-sm">{patient.ryzd?.trim() || '-'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${
+                            patient.status === '在院' 
+                              ? 'bg-green-100 text-green-700' 
+                              : patient.status === '已完成'
+                              ? 'bg-gray-100 text-gray-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {patient.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
+              
+              {/* 分页 */}
+              {total > pageSize && (
+                <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-lg text-sm"
+                  >
+                    <ChevronLeft className="w-4 h-4 inline" /> 上一页
+                  </button>
+                  <span className="text-sm text-slate-600">
+                    第 {page} 页，共 {Math.ceil(total / pageSize)} 页
+                  </span>
+                  <button
+                    onClick={() => setPage(page + 1)}
+                    disabled={page * pageSize >= total}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-lg text-sm"
+                  >
+                    下一页 <ChevronRight className="w-4 h-4 inline" />
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-slate-200 text-center">
+            <BarChart3 className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-800 mb-2">数据看板</h3>
+            <p className="text-slate-500">点击"患者查询"标签查看详细病史记录</p>
           </div>
         )}
 
@@ -390,17 +440,6 @@ export default function Home() {
             <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-slate-800 mb-2">考核评分模块</h3>
             <p className="text-slate-500 mb-4">正在建设中，敬请期待...</p>
-            <div className="flex justify-center gap-4">
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                病历完整性评分
-              </div>
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                诊断准确性评估
-              </div>
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                书写规范性检查
-              </div>
-            </div>
           </div>
         )}
 
@@ -410,17 +449,6 @@ export default function Home() {
             <Download className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-slate-800 mb-2">报表导出模块</h3>
             <p className="text-slate-500 mb-4">正在建设中，敬请期待...</p>
-            <div className="flex justify-center gap-4">
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                Excel 导出
-              </div>
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                PDF 报表
-              </div>
-              <div className="px-4 py-2 bg-slate-100 rounded-lg text-sm text-slate-600">
-                数据可视化
-              </div>
-            </div>
           </div>
         )}
       </main>
