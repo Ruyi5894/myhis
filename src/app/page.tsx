@@ -5,22 +5,9 @@ import {
   Users, Activity, Calendar, TrendingUp, Search, 
   FileText, Download, RefreshCw, Hospital,
   Clock, AlertCircle, CheckCircle, BarChart3,
-  ChevronLeft, ChevronRight, Filter
+  ChevronLeft, ChevronRight, Filter, X,
+  User, Stethoscope, Pill, FileCheck, DollarSign
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
-} from 'recharts';
-
-interface Stats {
-  totalInpatients: number;
-  totalOutpatients: number;
-  todayAdmissions: number;
-  todayDischarges: number;
-  departmentDistribution: { ksdm: number; count: number }[];
-  monthlyTrends: { month: string; count: number }[];
-  diagnosisDistribution: { diagnosis: string; count: number }[];
-}
 
 interface Patient {
   zlh: number;
@@ -39,27 +26,34 @@ interface Patient {
   status: string;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+interface PatientDetail {
+  type: string;
+  basic: any;
+  fees: any[];
+}
 
 export default function Home() {
-  const [stats, setStats] = useState<Stats | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [activeTab, setActiveTab] = useState('patients');
   
-  // 日期范围筛选 - 默认最近一年
+  // 日期范围筛选
   const today = new Date();
   const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
   
-  const [startDate, setStartDate] = useState('2017-01-01'); // 数据库中最早有2017年数据
+  const [startDate, setStartDate] = useState('2017-01-01');
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [patientType, setPatientType] = useState('all');
   
   // 分页
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 50;
+  const pageSize = 20;
+
+  // 患者详情弹窗
+  const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     fetchPatients();
@@ -96,9 +90,32 @@ export default function Home() {
     fetchPatients();
   };
 
+  // 点击患者查看详情
+  const handlePatientClick = async (patient: Patient) => {
+    setSelectedPatient(null);
+    setDetailLoading(true);
+    
+    try {
+      const res = await fetch(`/api/patients/${patient.zlh}`);
+      const data = await res.json();
+      if (data.success) {
+        setSelectedPatient(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch patient detail:', error);
+    }
+    
+    setDetailLoading(false);
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('zh-CN');
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString('zh-CN');
   };
 
   const getGender = (xb: number) => {
@@ -195,12 +212,11 @@ export default function Home() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Patients Tab - 患者查询 */}
+        {/* Patients Tab */}
         {activeTab === 'patients' && (
           <div className="space-y-6">
             {/* 搜索和筛选区域 */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-              {/* 快速日期选择 */}
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <Filter className="w-4 h-4 text-slate-500" />
                 <span className="text-sm text-slate-600">快速筛选：</span>
@@ -221,7 +237,6 @@ export default function Home() {
                 ))}
               </div>
               
-              {/* 日期范围输入 */}
               <div className="flex flex-wrap items-end gap-4 mb-4">
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-slate-600">开始日期：</label>
@@ -242,7 +257,6 @@ export default function Home() {
                   />
                 </div>
                 
-                {/* 患者类型筛选 */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-slate-600">类型：</label>
                   <select
@@ -257,7 +271,6 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* 关键词搜索 */}
               <form onSubmit={handleSearch} className="flex gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -265,7 +278,7 @@ export default function Home() {
                     type="text"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
-                    placeholder="搜索患者姓名、卡号、住院号、身份证号..."
+                    placeholder="搜索患者姓名、卡号、住院号..."
                     className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -330,7 +343,7 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
                 <h3 className="font-semibold text-slate-800">病史记录列表</h3>
-                <p className="text-sm text-slate-500">显示时间范围内的所有病史记录</p>
+                <p className="text-sm text-slate-500">点击任意行查看详细病史信息</p>
               </div>
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -363,7 +376,11 @@ export default function Home() {
                     </tr>
                   ) : (
                     patients.map((patient, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                      <tr 
+                        key={idx} 
+                        onClick={() => handlePatientClick(patient)}
+                        className="hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded ${
                             patient.jzlx === '住院' 
@@ -410,7 +427,7 @@ export default function Home() {
                     <ChevronLeft className="w-4 h-4 inline" /> 上一页
                   </button>
                   <span className="text-sm text-slate-600">
-                    第 {page} 页，共 {Math.ceil(total / pageSize)} 页
+                    第 {page} 页
                   </span>
                   <button
                     onClick={() => setPage(page + 1)}
@@ -452,6 +469,190 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* 患者详情弹窗 */}
+      {selectedPatient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* 弹窗头部 */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <User className="w-6 h-6 text-white" />
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    {selectedPatient.basic.xm || '患者详情'}
+                  </h2>
+                  <p className="text-blue-100 text-sm">
+                    {selectedPatient.type === 'inpatient' ? '住院病史' : '门诊记录'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedPatient(null)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+            </div>
+            
+            {/* 弹窗内容 */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              {/* 基本信息 */}
+              <div className="mb-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
+                  <User className="w-5 h-5 text-blue-600" />
+                  基本信息
+                </h3>
+                <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-500">姓名</p>
+                    <p className="font-semibold text-slate-800">{selectedPatient.basic.xm || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">性别</p>
+                    <p className="font-semibold text-slate-800">{getGender(selectedPatient.basic.xb)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">出生年月</p>
+                    <p className="font-semibold text-slate-800">{formatDate(selectedPatient.basic.csny)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">卡号</p>
+                    <p className="font-semibold text-slate-800 font-mono">{selectedPatient.basic.kh?.trim() || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">住院号</p>
+                    <p className="font-semibold text-slate-800 font-mono">{selectedPatient.basic.zyh?.trim() || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">入院日期</p>
+                    <p className="font-semibold text-slate-800">{formatDateTime(selectedPatient.basic.ryrq)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">出院日期</p>
+                    <p className="font-semibold text-slate-800">{formatDateTime(selectedPatient.basic.cyrq) || '在院'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">住院天数</p>
+                    <p className="font-semibold text-slate-800">{selectedPatient.basic.days || 0} 天</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 诊断信息 */}
+              <div className="mb-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
+                  <Stethoscope className="w-5 h-5 text-blue-600" />
+                  诊断信息
+                </h3>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-500">入院诊断</p>
+                      <p className="font-semibold text-slate-800">{selectedPatient.basic.ryzd?.trim() || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">当前状态</p>
+                      <span className={`inline-block px-2 py-1 text-sm font-medium rounded ${
+                        selectedPatient.basic.status === '在院' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedPatient.basic.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 费用信息 */}
+              <div className="mb-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  费用明细
+                </h3>
+                {selectedPatient.fees && selectedPatient.fees.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-slate-600">发票号</th>
+                          <th className="px-4 py-2 text-left text-slate-600">结算序号</th>
+                          <th className="px-4 py-2 text-left text-slate-600">结算时间</th>
+                          <th className="px-4 py-2 text-right text-slate-600">总金额</th>
+                          <th className="px-4 py-2 text-right text-slate-600">现金支付</th>
+                          <th className="px-4 py-2 text-right text-slate-600">记账金额</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedPatient.fees.map((fee: any, idx: number) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 font-mono text-slate-600">{fee.Fph || '-'}</td>
+                            <td className="px-4 py-2 text-slate-600">{fee.Jsxh || '-'}</td>
+                            <td className="px-4 py-2 text-slate-600">{formatDateTime(fee.Jssj)}</td>
+                            <td className="px-4 py-2 text-right font-medium text-slate-800">{fee.Zje?.toFixed(2) || '0.00'}</td>
+                            <td className="px-4 py-2 text-right text-slate-600">{fee.Xjzje?.toFixed(2) || '0.00'}</td>
+                            <td className="px-4 py-2 text-right text-slate-600">{fee.Jzje?.toFixed(2) || '0.00'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-500">
+                    暂无费用明细
+                  </div>
+                )}
+              </div>
+
+              {/* 治疗措施 */}
+              <div className="mb-6">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
+                  <Pill className="w-5 h-5 text-blue-600" />
+                  治疗措施
+                </h3>
+                <div className="bg-slate-50 rounded-xl p-8 text-center text-slate-500">
+                  治疗措施记录功能开发中...
+                </div>
+              </div>
+
+              {/* 出院信息 */}
+              <div>
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 mb-4">
+                  <FileCheck className="w-5 h-5 text-blue-600" />
+                  出院信息
+                </h3>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-500">出院日期</p>
+                      <p className="font-semibold text-slate-800">{formatDateTime(selectedPatient.basic.cyrq) || '在院中'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">出院方式</p>
+                      <p className="font-semibold text-slate-800">
+                        {selectedPatient.basic.cyfs === 1 ? '医嘱出院' : 
+                         selectedPatient.basic.cyfs === 2 ? '自动出院' : 
+                         selectedPatient.basic.cyfs === 3 ? '转院' : '未出院'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 加载中弹窗 */}
+      {detailLoading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
+            <p className="text-slate-600 mt-4">加载中...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

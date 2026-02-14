@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.0.2',
+  current: '1.0.4',
   name: '基础框架版',
   buildDate: '2026-02-14',
   author: 'Ruyi',
@@ -19,6 +19,8 @@ export const VERSION = {
   changelog: [
     { version: '1.0.0', date: '2026-02-14', content: '初始版本发布' },
     { version: '1.0.2', date: '2026-02-14', content: '患者查询页面完善：添加时间范围筛选（默认本月1号至今）、快捷日期按钮、住院/门诊类型筛选' },
+    { version: '1.0.3', date: '2026-02-14', content: '修复SQL分页问题，调整默认日期范围为2017年至今' },
+    { version: '1.0.4', date: '2026-02-14', content: '患者详情页面：点击患者可查看基本信息、诊断信息、费用明细、出院信息' },
   ],
 };
 
