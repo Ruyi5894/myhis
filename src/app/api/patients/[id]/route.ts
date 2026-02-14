@@ -91,13 +91,12 @@ export async function GET(
     if (mzResult.recordset.length > 0) {
       // 获取该患者的所有门诊记录
       const allRecordsQuery = `
-        SELECT 
+        SELECT TOP 50
           y.zdrq AS ryrq, y.Zdmc AS ryzd, y.Zddm AS zddm, y.xbs AS zhushu,
           y.Ssy AS ryks, y.Szy AS szy
         FROM MZYSZ_YSZDK y
         WHERE y.zlh = ${id}
         ORDER BY y.zdrq DESC
-        LIMIT 50
       `;
       const allRecords = await pool.request().query(allRecordsQuery);
       

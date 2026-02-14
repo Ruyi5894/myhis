@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.0.5',
+  current: '1.0.6',
   name: '基础框架版',
   buildDate: '2026-02-14',
   author: 'Ruyi',
