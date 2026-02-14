@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 病史分析考核系统
 
-## Getting Started
+## 版本信息
+- **当前版本**: 1.0.0
+- **版本名称**: 基础框架版
+- **构建日期**: 2026-02-14
 
-First, run the development server:
+## 功能列表
+- ✅ 数据看板 - 住院/门诊患者统计
+- ✅ 患者查询 - 按姓名/卡号/住院号搜索
+- 🔄 考核评分模块（建设中）
+- 🔄 报表导出模块（建设中）
 
+## 技术栈
+- 前端: Next.js 15 + React + TypeScript + Tailwind CSS
+- 图表: Recharts
+- 数据库: SQL Server 2019
+
+## 版本管理
+
+### 查看版本
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cat src/config/version.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 创建备份（修改前必做）
+```bash
+# 创建带时间戳的备份
+cp -r myhis-web myhis-web.backup.$(date +%Y%m%d.%H%M%S)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# 或使用 Git
+git add -A
+git commit -m "v1.0.1 - 描述你的修改"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 恢复到上一个版本
+```bash
+# 查看提交历史
+git log --oneline
 
-## Learn More
+# 恢复到上一个版本
+git reset --hard HEAD~1
 
-To learn more about Next.js, take a look at the following resources:
+# 或恢复到特定版本
+git reset --hard <commit-hash>
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 创建新版本标签
+```bash
+git tag -a v1.0.1 -m "版本描述"
+git push origin main --tags
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 快速命令
 
-## Deploy on Vercel
+### 启动开发服务器
+```bash
+cd myhis-web
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 构建生产版本
+```bash
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 数据库连接
+- 服务器: 192.168.1.243
+- 数据库: myhis
+- 用户: sa
+
+## 目录结构
+```
+myhis-web/
+├── src/
+│   ├── app/              # Next.js App Router
+│   │   ├── api/          # API 路由
+│   │   │   ├── patients/ # 患者查询API
+│   │   │   └── stats/    # 统计数据API
+│   │   ├── layout.tsx    # 根布局
+│   │   └── page.tsx     # 首页
+│   ├── config/           # 配置文件
+│   │   ├── database.ts  # 数据库配置
+│   │   └── version.ts   # 版本配置
+│   └── types/           # TypeScript 类型
+├── package.json
+└── README.md
+```
+
+## 问题排查
+
+### 数据库连接失败
+1. 检查 SQL Server 是否运行
+2. 检查防火墙是否开放 1433 端口
+3. 检查用户名密码是否正确
+
+### 页面加载失败
+1. 检查 Node.js 版本 (需要 18+)
+2. 删除 node_modules 重新安装: `rm -rf node_modules && npm install`
