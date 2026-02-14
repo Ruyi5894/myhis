@@ -48,11 +48,11 @@ export default function Home() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [activeTab, setActiveTab] = useState('patients');
   
-  // 日期范围筛选
+  // 日期范围筛选 - 默认最近一年
   const today = new Date();
-  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
   
-  const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState('2017-01-01'); // 数据库中最早有2017年数据
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [patientType, setPatientType] = useState('all');
   
