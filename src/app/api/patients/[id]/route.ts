@@ -31,45 +31,44 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 住院详情
-    if (id.startsWith('ZY') || !isNaN(Number(id))) {
-      const zyQuery = `
-        SELECT TOP 1 
-          zlh, jbxxbh, kh, knxx, zyh, xm, xb, csny, sfz, pzh,
-          ztqkdm, zhbz, jzlx, tsrybz, brlx,
-          ryrq, ryfs, ryzd, ryks, rybq, ryqk,
-          cyrq, cyfs, klb, czy, djzt, Dqbz, Zycs, YBJFLX, XZQ, sbryzd, Cxrq,
-          '住院' AS jzlx_text,
-          CASE WHEN cyrq IS NULL THEN '在院' ELSE '已出院' END AS status,
-          DATEDIFF(DAY, ryrq, ISNULL(cyrq, GETDATE())) AS days
-        FROM ZY_BRZLXXK
-        WHERE zlh = ${id} OR zyh = '${id}'
+    // 住院详情 - ZY_BRZLXXK
+    const zyQuery = `
+      SELECT TOP 1 
+        zlh, jbxxbh, kh, knxx, zyh, xm, xb, csny, sfz, pzh,
+        ztqkdm, zhbz, jzlx, tsrybz, brlx,
+        ryrq, ryfs, ryzd, ryks, rybq, ryqk,
+        cyrq, cyfs, klb, czy, djzt, Dqbz, Zycs, YBJFLX, XZQ, sbryzd, Cxrq,
+        '住院' AS jzlx_text,
+        CASE WHEN cyrq IS NULL THEN '在院' ELSE '已出院' END AS status,
+        DATEDIFF(DAY, ryrq, ISNULL(cyrq, GETDATE())) AS days
+      FROM ZY_BRZLXXK
+      WHERE zlh = ${id} OR zyh = '${id}'
+    `;
+    
+    const zyResult = await pool.request().query(zyQuery);
+    
+    if (zyResult.recordset.length > 0) {
+      const patient = zyResult.recordset[0];
+      
+      // 住院费用
+      const fyQuery = `
+        SELECT TOP 20 
+          Fph, Jsxh, Jssj, Zje, Xjzje, Jzje
+        FROM ZY_FPXXK
+        WHERE zlh = ${id}
+        ORDER BY Jssj DESC
       `;
+      const fyResult = await pool.request().query(fyQuery);
       
-      const zyResult = await pool.request().query(zyQuery);
-      
-      if (zyResult.recordset.length > 0) {
-        const patient = zyResult.recordset[0];
-        
-        const fyQuery = `
-          SELECT TOP 20 
-            Fph, Jsxh, Jssj, Zje, Xjzje, Jzje, Flzfje
-          FROM ZY_FPXXK
-          WHERE zlh = ${id}
-          ORDER BY Jssj DESC
-        `;
-        const fyResult = await pool.request().query(fyQuery);
-        
-        return NextResponse.json({
-          success: true,
-          data: {
-            type: 'inpatient',
-            basic: patient,
-            fees: fyResult.recordset,
-            medicalRecords: [],
-          },
-        });
-      }
+      return NextResponse.json({
+        success: true,
+        data: {
+          type: 'inpatient',
+          basic: patient,
+          fees: fyResult.recordset,
+          medicalRecords: [],
+        },
+      });
     }
     
     // 门诊详情 - 使用 MZYSZ_YSZDK
@@ -100,10 +99,10 @@ export async function GET(
       `;
       const allRecords = await pool.request().query(allRecordsQuery);
       
-      // 获取费用信息
+      // 门诊费用 - 从 GH_MXXXK
       const fyQuery = `
         SELECT TOP 20 
-          Fph, Jsxh, Jssj, Zje, Xjzje, Jzje, Flzfje
+          Fph, Ghrq AS Jssj, Ghf AS Zje, Zlf AS Xjzje
         FROM GH_MXXXK
         WHERE zlh = ${id}
         ORDER BY Ghrq DESC
