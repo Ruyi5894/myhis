@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取门诊就诊列表 - 按zlh去重，显示诊断名称
+// 获取门诊就诊列表 - 按zlh去重，显示诊断名称，可过滤简易门诊
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -29,6 +29,7 @@ export async function GET(request: Request) {
   const keyword = searchParams.get('keyword') || '';
   const startDate = searchParams.get('startDate') || '';
   const endDate = searchParams.get('endDate') || '';
+  const excludeSimple = searchParams.get('excludeSimple') === 'true';
 
   try {
     const pool = await getPool();
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       )`;
     }
 
-    // 按zlh去重，获取主要诊断名称
+    // 按zlh去重，获取主要诊断名称，可排除简易门诊
     const mzQuery = `
       SELECT * FROM (
         SELECT 
@@ -97,6 +98,19 @@ export async function GET(request: Request) {
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
         WHERE 1=1 ${keywordCondition}
+        ${excludeSimple ? ` AND (
+          zd.zhushu NOT LIKE '%复诊%' 
+          AND zd.zhushu NOT LIKE '%配药%' 
+          AND zd.zhushu NOT LIKE '%开药%'
+          AND zd.zhushu NOT LIKE '%随访%'
+          AND zd.zhushu NOT LIKE '%随诊%'
+          AND zd.zhushu NOT LIKE '%续方%'
+          AND zd.zhushu NOT LIKE '%续开%'
+          AND zd.zhushu NOT LIKE '%拿药%'
+          AND zd.zhushu NOT LIKE '%取药%'
+          AND zd.zhushu NOT LIKE '%常规复查%'
+          AND zd.zhushu NOT LIKE '%复查%'
+        )` : ''}
       ) AS MZPage
       WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
     `;
@@ -104,11 +118,33 @@ export async function GET(request: Request) {
     const mzResult = await pool.request().query(mzQuery);
     
     // 获取总数
-    const countQuery = `
+    let countQuery = `
       SELECT COUNT(DISTINCT zlh) as cnt 
-      FROM MZYSZ_YSZDK
+      FROM MZYSZ_YSZDK y
       WHERE 1=1 ${dateCondition}
     `;
+    
+    // 如果需要排除简易门诊，检查xbs字段
+    if (excludeSimple) {
+      countQuery = `
+        SELECT COUNT(DISTINCT zlh) as cnt 
+        FROM MZYSZ_YSZDK y
+        WHERE 1=1 ${dateCondition}
+        AND (
+          y.xbs NOT LIKE '%复诊%' 
+          AND y.xbs NOT LIKE '%配药%' 
+          AND y.xbs NOT LIKE '%开药%'
+          AND y.xbs NOT LIKE '%随访%'
+          AND y.xbs NOT LIKE '%随诊%'
+          AND y.xbs NOT LIKE '%续方%'
+          AND y.xbs NOT LIKE '%续开%'
+          AND y.xbs NOT LIKE '%拿药%'
+          AND y.xbs NOT LIKE '%取药%'
+          AND y.xbs NOT LIKE '%常规复查%'
+          AND y.xbs NOT LIKE '%复查%'
+        )
+      `;
+    }
     const countResult = await pool.request().query(countQuery);
     const total = countResult.recordset[0].cnt;
 

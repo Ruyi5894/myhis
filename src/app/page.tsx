@@ -50,6 +50,9 @@ export default function Home() {
   const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   
+  // 简易门诊过滤
+  const [excludeSimple, setExcludeSimple] = useState(false);
+  
   // 分页
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -61,7 +64,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchPatients();
-  }, [startDate, endDate, page]);
+  }, [startDate, endDate, page, excludeSimple]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -72,6 +75,7 @@ export default function Home() {
         endDate,
         page: page.toString(),
         pageSize: pageSize.toString(),
+        excludeSimple: excludeSimple.toString(),
       });
       const res = await fetch(`/api/patients?${params}`);
       const data = await res.json();
@@ -239,6 +243,19 @@ export default function Home() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={excludeSimple}
+                  onChange={(e) => { setExcludeSimple(e.target.checked); setPage(1); }}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">
+                  排除简易门诊（复诊、配药等）
+                </span>
+              </label>
             </div>
           </div>
           
