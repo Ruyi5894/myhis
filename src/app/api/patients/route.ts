@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取门诊就诊列表 - 按zlh去重，合并诊断信息
+// 获取门诊就诊列表 - 按zlh去重，显示诊断名称
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
@@ -36,11 +36,11 @@ export async function GET(request: Request) {
     
     let dateCondition = '';
     if (startDate && endDate) {
-      dateCondition = ` WHERE zdrq >= '${startDate} 00:00:00' AND zdrq <= '${endDate} 23:59:59'`;
+      dateCondition = ` AND zdrq >= '${startDate} 00:00:00' AND zdrq <= '${endDate} 23:59:59'`;
     } else if (startDate) {
-      dateCondition = ` WHERE zdrq >= '${startDate} 00:00:00'`;
+      dateCondition = ` AND zdrq >= '${startDate} 00:00:00'`;
     } else if (endDate) {
-      dateCondition = ` WHERE zdrq <= '${endDate} 23:59:59'`;
+      dateCondition = ` AND zdrq <= '${endDate} 23:59:59'`;
     }
     
     let keywordCondition = '';
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       )`;
     }
 
-    // 使用 CTE 按 zlh 去重，合并诊断信息
+    // 按zlh去重，获取主要诊断名称
     const mzQuery = `
       SELECT * FROM (
         SELECT 
@@ -84,13 +84,14 @@ export async function GET(request: Request) {
             zlh,
             MAX(zdrq) AS zdrq,
             MAX(jbxxbh) AS jbxxbh,
-            STRING_AGG(CONVERT(VARCHAR(500), ISNULL(Zdmc, '')), '; ') AS ryzd,
-            STRING_AGG(CONVERT(VARCHAR(100), ISNULL(Zddm, '')), '; ') AS zddm,
-            STRING_AGG(CONVERT(VARCHAR(2000), ISNULL(xbs, '')), '; ') AS zhushu,
+            STRING_AGG(CONVERT(VARCHAR(500), ISNULL(d.zdmc, '')), '; ') AS ryzd,
+            STRING_AGG(CONVERT(VARCHAR(200), ISNULL(y.Zddm, '')), '; ') AS zddm,
+            MAX(CONVERT(VARCHAR(500), y.xbs)) AS zhushu,
             MAX(ssy) AS ssy,
             MAX(szy) AS szy
-          FROM MZYSZ_YSZDK
-          ${dateCondition}
+          FROM MZYSZ_YSZDK y
+          LEFT JOIN JB_ZDDMK d ON RTRIM(y.Zddm) = RTRIM(d.zddm)
+          WHERE 1=1 ${dateCondition}
           GROUP BY zlh
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
@@ -106,7 +107,7 @@ export async function GET(request: Request) {
     const countQuery = `
       SELECT COUNT(DISTINCT zlh) as cnt 
       FROM MZYSZ_YSZDK
-      ${dateCondition} ${keywordCondition.replace(/zd\./g, '')}
+      WHERE 1=1 ${dateCondition}
     `;
     const countResult = await pool.request().query(countQuery);
     const total = countResult.recordset[0].cnt;
