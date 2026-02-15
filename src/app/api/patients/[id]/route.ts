@@ -84,13 +84,13 @@ export async function GET(
     `;
     const prescriptionResult = await pool.request().query(prescriptionQuery);
 
-    // 处方明细（药品/治疗项目）- 关联JB_SFXMMXK获取项目名称
+    // 处方明细（药品/治疗项目）- 从JB_SFXMMXK获取完整规格
     const prescriptionDetailQuery = `
       SELECT 
         m.cfxh,
         m.cfmxxh,
         m.cfxmdm,
-        ISNULL(m.Mzgg, x.Mzgg) AS Mzgg,
+        CAST(x.Mzgg AS NVARCHAR(MAX)) AS Mzgg,
         m.Jl,
         m.sl,
         m.ypyf,
@@ -98,7 +98,7 @@ export async function GET(
         m.ypyl,
         ISNULL(m.cfxmmc, x.Mxxmmc) AS cfxmmc
       FROM MZYSZ_CFMXK m
-      LEFT JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)
+      INNER JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)
       WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${id})
       ORDER BY m.cfmxxh DESC
     `;
