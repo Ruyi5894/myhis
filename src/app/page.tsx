@@ -5,7 +5,8 @@ import {
   Users, Calendar, Search, RefreshCw, Hospital,
   ChevronLeft, ChevronRight, Filter, X,
   User, Stethoscope, Pill, DollarSign,
-  StickyNote, Phone, MapPin, IdCard
+  StickyNote, Phone, MapPin, IdCard,
+  FileText
 } from 'lucide-react';
 
 interface Patient {
