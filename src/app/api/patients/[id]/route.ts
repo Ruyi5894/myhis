@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取门诊就诊详情
+// 获取门诊就诊详情 - 包含费用明细和处方信息
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,13 +31,13 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 门诊详情 - 关联 XT_BRJBXXK 患者基本信息表
-    const mzQuery = `
+    // 基本信息
+    const basicQuery = `
       SELECT TOP 1 
-        y.zlh AS zlh,
-        y.jbxxbh AS jbxxbh,
+        y.zlh,
+        y.jbxxbh,
         ISNULL(p.Xm, '未知') AS xm,
-        ISNULL(p.Xb, 0) AS xb,
+        CASE ISNULL(p.Xb, 0) WHEN 0 THEN '女' WHEN 1 THEN '男' ELSE '未知' END AS xb_text,
         p.Csny AS csny,
         p.Sfz AS sfz,
         p.Dhhm AS lxdh,
@@ -49,10 +49,7 @@ export async function GET(
         y.Szy AS szy,
         y.Ssy AS ssy,
         g.Fymc AS fymc,
-        g.Ghf AS ghf,
-        y.Jlzt AS jlzt,
-        '门诊' AS jzlx_text,
-        '已完成' AS status
+        g.Ghf AS ghf
       FROM MZYSZ_YSZDK y
       LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
       LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
@@ -60,41 +57,72 @@ export async function GET(
       ORDER BY y.zdrq DESC
     `;
     
-    const mzResult = await pool.request().query(mzQuery);
+    const basicResult = await pool.request().query(basicQuery);
     
-    if (mzResult.recordset.length > 0) {
-      // 获取该患者的所有就诊记录
-      const allRecordsQuery = `
-        SELECT TOP 100
-          y.zdrq AS ryrq,
-          y.Zdmc AS ryzd,
-          y.Zddm AS zddm,
-          y.xbs AS zhushu,
-          y.Szy AS szy,
-          y.Ssy AS ssy,
-          g.Fymc AS fymc,
-          g.Ghf AS ghf
-        FROM MZYSZ_YSZDK y
-        LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
-        WHERE y.zlh = ${id}
-        ORDER BY y.zdrq DESC
-      `;
-      const allRecords = await pool.request().query(allRecordsQuery);
-      
+    if (basicResult.recordset.length === 0) {
       return NextResponse.json({
-        success: true,
-        data: {
-          type: 'outpatient',
-          basic: mzResult.recordset[0],
-          medicalRecords: allRecords.recordset,
-          fees: [],
-        },
+        success: false,
+        error: '未找到该就诊记录',
       });
     }
-    
+
+    // 处方列表
+    const prescriptionQuery = `
+      SELECT 
+        CFxh AS cfxh,
+        brkh,
+        cfysdm,
+        cfje,
+        cflx,
+        cfrq,
+        cfysksdm,
+        cfzxksdm,
+        sycfbz
+      FROM MZYSZ_CFK
+      WHERE brzlh = ${id}
+      ORDER BY cfrq DESC
+    `;
+    const prescriptionResult = await pool.request().query(prescriptionQuery);
+
+    // 处方明细（药品/治疗项目）
+    const prescriptionDetailQuery = `
+      SELECT 
+        m.cfxh,
+        m.cfmxxh,
+        m.cfxmdm,
+        m.Mzgg,
+        m.Jl,
+        m.sl,
+        m.ypyf,
+        m.ypsypldm,
+        m.ypyl,
+        m.cfxmmc
+      FROM MZYSZ_CFMXK m
+      WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${id})
+      ORDER BY m.cfmxxh DESC
+    `;
+    const prescriptionDetailResult = await pool.request().query(prescriptionDetailQuery);
+
+    // 汇总费用
+    const feeSummaryQuery = `
+      SELECT 
+        COUNT(*) AS cf_count,
+        ISNULL(SUM(cfje), 0) AS total_cfje,
+        ISNULL(SUM(g.Ghf), 0) AS total_ghf
+      FROM MZYSZ_CFK c
+      LEFT JOIN GH_MXXXK g ON c.brzlh = g.zlh
+      WHERE c.brzlh = ${id}
+    `;
+    const feeSummaryResult = await pool.request().query(feeSummaryQuery);
+
     return NextResponse.json({
-      success: false,
-      error: '未找到该就诊记录',
+      success: true,
+      data: {
+        basic: basicResult.recordset[0],
+        prescriptions: prescriptionResult.recordset,
+        prescriptionDetails: prescriptionDetailResult.recordset,
+        feeSummary: feeSummaryResult.recordset[0],
+      },
     });
     
   } catch (error) {
