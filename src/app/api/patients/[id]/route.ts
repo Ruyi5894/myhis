@@ -21,7 +21,7 @@ async function getPool() {
   return pool;
 }
 
-// 获取门诊就诊详情 - 包含费用明细和处方信息
+// 获取门诊就诊详情 - 按卫健委规范组织病史信息
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +31,7 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 基本信息
+    // 基本信息 + 病历记录
     const basicQuery = `
       SELECT TOP 1 
         y.zlh,
@@ -42,12 +42,18 @@ export async function GET(
         p.Sfz AS sfz,
         p.Dhhm AS lxdh,
         p.Jtdz AS dz,
+        p.Zy AS zy,                     -- 职业
         y.zdrq AS ryrq,
-        y.Zdmc AS ryzd,
-        y.Zddm AS zddm,
-        y.xbs AS zhushu,
-        y.Szy AS szy,
-        y.Ssy AS ssy,
+        y.Zdmc AS ryzd,                 -- 初步诊断（诊断名称）
+        y.Zddm AS zddm,                -- 诊断代码
+        y.xbs AS xbs,                  -- 现病史
+        y.Tj AS tjbg,                  -- 体格检查
+        y.Bz AS clcs,                  -- 处理措施/备注
+        y.Mb AS mb,                    -- 脉搏
+        y.Xt AS xt,                    -- 血压/体征
+        y.Tw AS tw,                    -- 体温
+        y.Zdys AS zzys,                -- 主诊医师
+        y.Szy AS kzys,                 -- 开方医师
         g.Fymc AS fymc,
         g.Ghf AS ghf
       FROM MZYSZ_YSZDK y
@@ -65,6 +71,8 @@ export async function GET(
         error: '未找到该就诊记录',
       });
     }
+
+    const basic = basicResult.recordset[0];
 
     // 处方列表
     const prescriptionQuery = `
@@ -84,7 +92,7 @@ export async function GET(
     `;
     const prescriptionResult = await pool.request().query(prescriptionQuery);
 
-    // 处方明细（药品/治疗项目）- 从JB_SFXMMXK获取完整规格
+    // 处方明细
     const prescriptionDetailQuery = `
       SELECT 
         m.cfxh,
@@ -104,7 +112,7 @@ export async function GET(
     `;
     const prescriptionDetailResult = await pool.request().query(prescriptionDetailQuery);
 
-    // 汇总费用
+    // 费用汇总
     const feeSummaryQuery = `
       SELECT 
         COUNT(*) AS cf_count,
@@ -116,10 +124,59 @@ export async function GET(
     `;
     const feeSummaryResult = await pool.request().query(feeSummaryQuery);
 
+    // 计算年龄
+    let nl = '-';
+    if (basic.csny) {
+      const birthDate = new Date(basic.csny);
+      if (!isNaN(birthDate.getTime())) {
+        const today = new Date();
+        nl = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toString();
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        basic: basicResult.recordset[0],
+        // 门诊病历首页
+        basicInfo: {
+          name: basic.xm?.trim(),
+          gender: basic.xb_text,
+          age: nl + '岁',
+          cardNo: basic.sfz?.trim() || '-',
+          phone: basic.lxdh?.trim() || '-',
+          address: basic.dz?.trim() || '-',
+          occupation: basic.zy?.trim() || '-',
+          visitDate: basic.ryrq,
+          dept: basic.ssy || '-',
+        },
+        // 病历记录
+        medicalRecord: {
+          // 主诉 - 从现病史提取第一句或为空
+          chiefComplaint: basic.xbs?.trim()?.split('。')[0] + '。' || '-',
+          // 现病史
+          presentIllness: basic.xbs?.trim() || '-',
+          // 既往史 - 数据库暂无此字段
+          pastHistory: '-',
+          // 体格检查
+          physicalExam: basic.tjbg?.trim() || '-',
+          // 初步诊断
+          preliminaryDiagnosis: basic.ryzd?.trim() || '-',
+          diagnosisCode: basic.zddm?.trim() || '-',
+          // 处理措施
+          treatment: basic.clcs?.trim() || '-',
+        },
+        // 生命体征
+        vitalSigns: {
+          bloodPressure: basic.xt || '-',
+          heartRate: basic.mb || '-',
+          temperature: basic.tw ? basic.tw + '°C' : '-',
+        },
+        // 医师签名
+        signature: {
+          doctor: basic.kzys?.toString().trim() || '-',
+          signDate: basic.ryrq,
+        },
+        // 处方信息
         prescriptions: prescriptionResult.recordset,
         prescriptionDetails: prescriptionDetailResult.recordset,
         feeSummary: feeSummaryResult.recordset[0],

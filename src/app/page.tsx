@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Users, Calendar, Search, RefreshCw, Hospital,
+  Calendar, Search, RefreshCw, Hospital,
   ChevronLeft, ChevronRight, Filter, X,
   User, Stethoscope, Pill, DollarSign,
-  StickyNote, Phone, MapPin, IdCard,
-  FileText
+  StickyNote, Activity, ClipboardList
 } from 'lucide-react';
 
 interface Patient {
@@ -32,7 +31,35 @@ interface Patient {
 }
 
 interface PatientDetail {
-  basic: any;
+  basicInfo: {
+    name: string;
+    gender: string;
+    age: string;
+    cardNo: string;
+    phone: string;
+    address: string;
+    occupation: string;
+    visitDate: string;
+    dept: string;
+  };
+  medicalRecord: {
+    chiefComplaint: string;
+    presentIllness: string;
+    pastHistory: string;
+    physicalExam: string;
+    preliminaryDiagnosis: string;
+    diagnosisCode: string;
+    treatment: string;
+  };
+  vitalSigns: {
+    bloodPressure: string;
+    heartRate: string;
+    temperature: string;
+  };
+  signature: {
+    doctor: string;
+    signDate: string;
+  };
   prescriptions: any[];
   prescriptionDetails: any[];
   feeSummary: any;
@@ -43,22 +70,17 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
   
-  // 日期范围筛选 - 默认当月1号至今
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   
   const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
-  
-  // 简易门诊过滤
   const [excludeSimple, setExcludeSimple] = useState(false);
   
-  // 分页
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
-  // 患者详情弹窗
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -97,7 +119,6 @@ export default function Home() {
     fetchPatients();
   };
 
-  // 点击患者查看详情
   const handlePatientClick = async (patient: Patient) => {
     setSelectedPatient(null);
     setDetailLoading(true);
@@ -116,7 +137,7 @@ export default function Home() {
   };
 
   const formatDate = (dateStr: string) => {
-    if (!dateStr || dateStr === 'null') return '-';
+    if (!dateStr || dateStr === 'null' || dateStr === '-') return '-';
     try {
       return new Date(dateStr).toLocaleDateString('zh-CN');
     } catch {
@@ -125,7 +146,7 @@ export default function Home() {
   };
 
   const formatDateTime = (dateStr: string) => {
-    if (!dateStr || dateStr === 'null') return '-';
+    if (!dateStr || dateStr === 'null' || dateStr === '-') return '-';
     try {
       return new Date(dateStr).toLocaleString('zh-CN');
     } catch {
@@ -139,7 +160,6 @@ export default function Home() {
     return str || '-';
   };
 
-  // 快捷日期按钮
   const setQuickDateRange = (range: string) => {
     const today = new Date();
     let start: Date;
@@ -181,7 +201,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">门诊病史分析系统</h1>
-                <p className="text-sm text-gray-500">门诊病史智能分析与考核平台</p>
+                <p className="text-sm text-gray-500">依据国家卫健委规范</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -253,7 +273,7 @@ export default function Home() {
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700">
-                  排除简易门诊（复诊、配药等）
+                  排除简易门诊（复诊，配药等）
                 </span>
               </label>
             </div>
@@ -295,7 +315,7 @@ export default function Home() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-orange-600" />
+                <User className="w-5 h-5 text-orange-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-500">就诊人数</p>
@@ -319,7 +339,7 @@ export default function Home() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-purple-600" />
+                <Pill className="w-5 h-5 text-purple-600" />
               </div>
               <div>
                 <p className="text-xs text-gray-500">处方数量</p>
@@ -407,7 +427,6 @@ export default function Home() {
             </table>
           </div>
           
-          {/* 分页 */}
           {total > pageSize && (
             <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
               <button
@@ -432,21 +451,19 @@ export default function Home() {
         </div>
       </main>
 
-      {/* 患者详情弹窗 */}
+      {/* 门诊病历详情弹窗 - 按卫健委规范显示 */}
       {selectedPatient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
             {/* 弹窗头部 */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-white" />
+                  <ClipboardList className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">
-                    {formatText(selectedPatient.basic.xm)}
-                  </h2>
-                  <p className="text-blue-100 text-sm">门诊病史详情</p>
+                  <h2 className="text-xl font-bold text-white">门诊病历</h2>
+                  <p className="text-blue-100 text-sm">依据国家卫健委规范</p>
                 </div>
               </div>
               <button 
@@ -459,160 +476,251 @@ export default function Home() {
             
             {/* 弹窗内容 */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              {/* 基本信息 */}
+              
+              {/* 一、门诊病历首页 */}
               <div className="mb-6">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  <User className="w-5 h-5 text-blue-600" />
-                  基本信息
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">姓名</p>
-                    <p className="font-semibold text-gray-900">{formatText(selectedPatient.basic.xm)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">性别</p>
-                    <p className="font-semibold text-gray-900">{formatText(selectedPatient.basic.xb_text)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">出生年月</p>
-                    <p className="font-semibold text-gray-900">{formatDate(selectedPatient.basic.csny)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">联系电话</p>
-                    <p className="font-semibold text-gray-900">{formatText(selectedPatient.basic.lxdh)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">身份证号</p>
-                    <p className="font-semibold text-gray-900 font-mono">{formatText(selectedPatient.basic.sfz)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">家庭地址</p>
-                    <p className="font-semibold text-gray-900 text-sm">{formatText(selectedPatient.basic.dz)}</p>
-                  </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                  <h3 className="text-lg font-semibold text-gray-900">门诊病历首页</h3>
                 </div>
-              </div>
-
-              {/* 诊断信息 */}
-              <div className="mb-6">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  <Stethoscope className="w-5 h-5 text-blue-600" />
-                  诊断信息
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 mb-1">诊断名称</p>
-                    <p className="font-semibold text-gray-900">{formatText(selectedPatient.basic.ryzd)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 mb-1">诊断代码</p>
-                    <p className="font-semibold text-gray-900 font-mono">{formatText(selectedPatient.basic.zddm)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 主诉/现病史 */}
-              <div className="mb-6">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  <StickyNote className="w-5 h-5 text-blue-600" />
-                  主诉/现病史
-                </h3>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-900">{formatText(selectedPatient.basic.zhushu)}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">姓名</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">性别</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.gender}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">年龄</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.age}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">就诊日期</p>
+                      <p className="font-semibold text-gray-900">{formatDate(selectedPatient.basicInfo.visitDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">联系电话</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">身份证号</p>
+                      <p className="font-semibold text-gray-900 font-mono text-sm">{selectedPatient.basicInfo.cardNo}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">职业</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.occupation}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">就诊科室</p>
+                      <p className="font-semibold text-gray-900">{selectedPatient.basicInfo.dept}</p>
+                    </div>
+                    <div className="col-span-2 md:col-span-4">
+                      <p className="text-xs text-gray-500">家庭地址</p>
+                      <p className="font-semibold text-gray-900 text-sm">{selectedPatient.basicInfo.address}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* 费用汇总 */}
+              {/* 二、病历记录 */}
               <div className="mb-6">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
-                  费用汇总
-                </h3>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                  <h3 className="text-lg font-semibold text-gray-900">病历记录</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* 主诉 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <StickyNote className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">主诉</span>
+                    </div>
+                    <p className="text-gray-900">{selectedPatient.medicalRecord.chiefComplaint}</p>
+                  </div>
+
+                  {/* 现病史 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <StickyNote className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">现病史</span>
+                    </div>
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedPatient.medicalRecord.presentIllness}</p>
+                  </div>
+
+                  {/* 既往史 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardList className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">既往史</span>
+                    </div>
+                    <p className="text-gray-500 italic">{selectedPatient.medicalRecord.pastHistory}</p>
+                  </div>
+
+                  {/* 体格检查 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">体格检查</span>
+                    </div>
+                    <p className="text-gray-900">{selectedPatient.medicalRecord.physicalExam}</p>
+                  </div>
+
+                  {/* 初步诊断 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Stethoscope className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">初步诊断</span>
+                    </div>
+                    <p className="font-semibold text-gray-900">{selectedPatient.medicalRecord.preliminaryDiagnosis}</p>
+                    <p className="text-sm text-gray-500 font-mono mt-1">诊断代码: {selectedPatient.medicalRecord.diagnosisCode}</p>
+                  </div>
+
+                  {/* 处理措施 */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Pill className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-600">处理措施</span>
+                    </div>
+                    <p className="text-gray-900 whitespace-pre-wrap">{selectedPatient.medicalRecord.treatment}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 三、生命体征 */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                  <h3 className="text-lg font-semibold text-gray-900">生命体征</h3>
+                </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-gray-50 rounded-lg p-4 text-center">
-                    <p className="text-xs text-gray-500 mb-1">处方数量</p>
-                    <p className="text-2xl font-bold text-gray-900">{selectedPatient.feeSummary?.cf_count || 0}</p>
+                    <p className="text-xs text-gray-500 mb-1">血压</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedPatient.vitalSigns.bloodPressure}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4 text-center">
-                    <p className="text-xs text-gray-500 mb-1">处方总金额</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      ¥ {(selectedPatient.feeSummary?.total_cfje || 0).toFixed(2)}
-                    </p>
+                    <p className="text-xs text-gray-500 mb-1">心率/脉搏</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedPatient.vitalSigns.heartRate}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-4 text-center">
-                    <p className="text-xs text-gray-500 mb-1">挂号费</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      ¥ {(selectedPatient.feeSummary?.total_ghf || 0).toFixed(2)}
-                    </p>
+                    <p className="text-xs text-gray-500 mb-1">体温</p>
+                    <p className="text-xl font-bold text-gray-900">{selectedPatient.vitalSigns.temperature}</p>
                   </div>
                 </div>
               </div>
 
-              {/* 处方列表 */}
-              {selectedPatient.prescriptions && selectedPatient.prescriptions.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                    <Pill className="w-5 h-5 text-blue-600" />
-                    处方列表 ({selectedPatient.prescriptions.length})
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">处方号</th>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">开方时间</th>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">开方科室</th>
-                          <th className="px-3 py-2 text-right text-gray-600 font-medium">处方金额</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {selectedPatient.prescriptions.map((cf: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="px-3 py-2 font-mono text-gray-600">{cf.cfxh}</td>
-                            <td className="px-3 py-2 text-gray-600">{formatDateTime(cf.cfrq)}</td>
-                            <td className="px-3 py-2 text-gray-600">{cf.cfzxksdm}</td>
-                            <td className="px-3 py-2 text-right font-medium text-gray-900">
-                              ¥ {cf.cfje?.toFixed(2) || '0.00'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {/* 四、医师签名 */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                  <h3 className="text-lg font-semibold text-gray-900">医师签名</h3>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">医师签名</p>
+                    <p className="font-semibold text-gray-900">{selectedPatient.signature.doctor}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500 mb-1">签名日期</p>
+                    <p className="font-semibold text-gray-900">{formatDate(selectedPatient.signature.signDate)}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* 处方明细 */}
-              {selectedPatient.prescriptionDetails && selectedPatient.prescriptionDetails.length > 0 && (
-                <div>
-                  <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                    处方明细 ({selectedPatient.prescriptionDetails.length})
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">项目名称</th>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">规格</th>
-                          <th className="px-3 py-2 text-center text-gray-600 font-medium">数量</th>
-                          <th className="px-3 py-2 text-left text-gray-600 font-medium">用法</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {selectedPatient.prescriptionDetails.map((item: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="px-3 py-2 text-gray-900">{formatText(item.cfxmmc)}</td>
-                            <td className="px-3 py-2 text-gray-600 text-xs">{formatText(item.Mzgg)}</td>
-                            <td className="px-3 py-2 text-center text-gray-600">{item.sl || 0}</td>
-                            <td className="px-3 py-2 text-gray-600 text-xs">
-                              {formatText(item.ypsypldm)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {/* 五、处方信息 */}
+              {selectedPatient.prescriptions && selectedPatient.prescriptions.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">5</span>
+                    <h3 className="text-lg font-semibold text-gray-900">处方信息</h3>
                   </div>
+                  
+                  {/* 费用汇总 */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">处方数量</p>
+                      <p className="text-2xl font-bold text-gray-900">{selectedPatient.feeSummary?.cf_count || 0}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">处方总金额</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ¥ {(selectedPatient.feeSummary?.total_cfje || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">挂号费</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ¥ {(selectedPatient.feeSummary?.total_ghf || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 处方列表 */}
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-700">处方列表</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-gray-600">处方号</th>
+                            <th className="px-4 py-2 text-left text-gray-600">开方时间</th>
+                            <th className="px-4 py-2 text-left text-gray-600">开方科室</th>
+                            <th className="px-4 py-2 text-right text-gray-600">处方金额</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {selectedPatient.prescriptions.map((cf: any, idx: number) => (
+                            <tr key={idx}>
+                              <td className="px-4 py-2 font-mono text-gray-600">{cf.cfxh}</td>
+                              <td className="px-4 py-2 text-gray-600">{formatDateTime(cf.cfrq)}</td>
+                              <td className="px-4 py-2 text-gray-600">{cf.cfzxksdm}</td>
+                              <td className="px-4 py-2 text-right font-medium text-gray-900">
+                                ¥ {cf.cfje?.toFixed(2) || '0.00'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* 处方明细 */}
+                  {selectedPatient.prescriptionDetails && selectedPatient.prescriptionDetails.length > 0 && (
+                    <div className="mt-4 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                        <p className="text-sm font-medium text-gray-700">处方明细</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-gray-600">项目名称</th>
+                              <th className="px-4 py-2 text-left text-gray-600">规格</th>
+                              <th className="px-4 py-2 text-center text-gray-600">数量</th>
+                              <th className="px-4 py-2 text-left text-gray-600">用法</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {selectedPatient.prescriptionDetails.map((item: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-2 text-gray-900">{formatText(item.cfxmmc)}</td>
+                                <td className="px-4 py-2 text-gray-600 text-xs">{formatText(item.Mzgg)}</td>
+                                <td className="px-4 py-2 text-center text-gray-600">{item.sl || 0}</td>
+                                <td className="px-4 py-2 text-gray-600 text-xs">
+                                  {formatText(item.ypsypldm)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
