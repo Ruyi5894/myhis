@@ -271,6 +271,32 @@ export default function Home() {
     return str || '-';
   };
 
+  // 计算用药天数
+  const calculateDays = (item: any): string => {
+    const sl = item.sl || 0;
+    const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
+    
+    if (!ypyf || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
+      return '-';  // 必要时等无法计算
+    }
+    
+    // 解析用药频率
+    let timesPerDay = 1;  // 默认
+    if (ypyf.includes('QD') || ypyf.includes('QN') || ypyf === '1') {
+      timesPerDay = 1;
+    } else if (ypyf.includes('BID') || ypyf === '2') {
+      timesPerDay = 2;
+    } else if (ypyf.includes('TID') || ypyf === '3') {
+      timesPerDay = 3;
+    } else if (ypyf.includes('QID') || ypyf === '4') {
+      timesPerDay = 4;
+    }
+    
+    // 计算天数
+    const days = sl / timesPerDay;
+    return Math.round(days * 10) / 10 + '天';
+  };
+
   const setQuickDateRange = (range: string) => {
     const today = new Date();
     let start: Date;
@@ -878,6 +904,7 @@ export default function Home() {
                               <th className="px-4 py-2 text-left text-gray-600">规格</th>
                               <th className="px-4 py-2 text-center text-gray-600">数量</th>
                               <th className="px-4 py-2 text-left text-gray-600">用法</th>
+                              <th className="px-4 py-2 text-center text-gray-600">可用天数</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
@@ -888,6 +915,9 @@ export default function Home() {
                                 <td className="px-4 py-2 text-center text-gray-600">{item.sl || 0}</td>
                                 <td className="px-4 py-2 text-gray-600 text-xs">
                                   {formatText(item.ypsypldm)}
+                                </td>
+                                <td className="px-4 py-2 text-center text-blue-600 font-medium">
+                                  {calculateDays(item)}
                                 </td>
                               </tr>
                             ))}

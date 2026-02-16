@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.23',
+  current: '1.7.24',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -49,6 +49,7 @@ export const VERSION = {
     { version: '1.7.21', date: '2026-02-16', content: '新增：AI评分重新评分按钮，可强制重新评分' },
     { version: '1.7.22', date: '2026-02-16', content: '优化：AI评分提示词，要求具体分析原文，清除评分历史' },
     { version: '1.7.23', date: '2026-02-16', content: '修复：就诊时间时区问题（显示正确时间），开方科室显示科室名称' },
+    { version: '1.7.24', date: '2026-02-16', content: '新增：处方明细增加可用天数计算（根据用法和数量）' },
   ],
 };
 
