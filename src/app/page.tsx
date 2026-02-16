@@ -930,6 +930,7 @@ export default function Home() {
                               <th className="px-4 py-2 text-left text-gray-600">规格</th>
                               <th className="px-4 py-2 text-center text-gray-600">数量</th>
                               <th className="px-4 py-2 text-left text-gray-600">用法</th>
+                              <th className="px-4 py-2 text-center text-gray-600">每日用量</th>
                               <th className="px-4 py-2 text-center text-gray-600">可用天数</th>
                             </tr>
                           </thead>
@@ -941,6 +942,9 @@ export default function Home() {
                                 <td className="px-4 py-2 text-center text-gray-600">{item.sl || 0}</td>
                                 <td className="px-4 py-2 text-gray-600 text-xs">
                                   {formatText(item.ypsypldm)}
+                                </td>
+                                <td className="px-4 py-2 text-center text-gray-600">
+                                  {item.ypyl || '-'}
                                 </td>
                                 <td className="px-4 py-2 text-center text-blue-600 font-medium">
                                   {calculateDays(item)}
