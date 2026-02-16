@@ -32,10 +32,21 @@ export async function GET(request: Request) {
   const excludeSimple = searchParams.get('excludeSimple') === 'true';
   const dept = searchParams.get('dept') || '';  // 科室筛选
   const doctor = searchParams.get('doctor') || '';  // 医生筛选
+  const sortField = searchParams.get('sortField') || 'zdrq';  // 排序字段
+  const sortOrder = searchParams.get('sortOrder') || 'desc';  // 排序方向
 
   try {
     const pool = await getPool();
     const offset = (page - 1) * pageSize;
+    
+    // 排序字段映射
+    const sortFieldMap: Record<string, string> = {
+      zdrq: 'zd.zdrq',
+      cfje: 'cfje',
+      doctor_name: 'doctor_name',
+    };
+    const orderByField = sortFieldMap[sortField] || 'zd.zdrq';
+    const orderByDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
     
     let dateCondition = '';
     if (startDate && endDate) {
@@ -73,7 +84,7 @@ export async function GET(request: Request) {
     const mzQuery = `
       SELECT * FROM (
         SELECT 
-          ROW_NUMBER() OVER (ORDER BY zd.zdrq DESC) AS RowNum,
+          ROW_NUMBER() OVER (ORDER BY ${orderByField} ${orderByDirection}) AS RowNum,
           zd.zlh,
           zd.jbxxbh,
           ISNULL(p.Xm, '未知') AS xm,
@@ -185,7 +196,7 @@ export async function GET(request: Request) {
 
     // 获取当前搜索结果中的科室列表 - 与患者列表保持一致
     const deptQuery = `
-      SELECT DISTINCT g.Ksdm, k.Ksmc
+      SELECT DISTINCT g.Ksdm, k.Ksmc, k.Ksmc AS sort_key
       FROM (
         SELECT y.zlh
         FROM MZYSZ_YSZDK y
@@ -204,7 +215,7 @@ export async function GET(request: Request) {
       INNER JOIN GH_MXXXK g ON y.zlh = g.zlh
       LEFT JOIN JB_KSBMK k ON g.Ksdm = k.Ksdm
       WHERE g.Ksdm IS NOT NULL AND g.Ksdm != '' AND g.Ksdm != '1000'
-      ORDER BY k.Ksmc
+      ORDER BY sort_key
     `;
     const deptResult = await pool.request().query(deptQuery);
 
@@ -228,7 +239,6 @@ export async function GET(request: Request) {
       ) y
       INNER JOIN YBsjcj_JB_ZGBMK doc ON y.Zdys = doc.zgdm
       WHERE y.Zdys IS NOT NULL AND y.Zdys > 0
-      ORDER BY doc.zgxm
     `;
     const doctorResult = await pool.request().query(doctorQuery);
 

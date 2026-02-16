@@ -95,6 +95,10 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 20;
+  
+  // 排序状态
+  const [sortField, setSortField] = useState<string>('zdrq');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -115,7 +119,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchPatients();
-  }, [startDate, endDate, page, excludeSimple, selectedDept, selectedDoctor]);
+  }, [startDate, endDate, page, excludeSimple, selectedDept, selectedDoctor, sortField, sortOrder]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -129,6 +133,8 @@ export default function Home() {
         excludeSimple: excludeSimple.toString(),
         dept: selectedDept,
         doctor: selectedDoctor,
+        sortField,
+        sortOrder,
       });
       const res = await fetch(`/api/patients?${params}`);
       const data = await res.json();
@@ -155,6 +161,19 @@ export default function Home() {
     e.preventDefault();
     setPage(1);
     fetchPatients();
+  };
+
+  // 排序处理
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // 相同字段，反转排序方向
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // 不同字段，默认降序
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setPage(1);
   };
 
   const handlePatientClick = async (patient: Patient) => {
@@ -486,11 +505,26 @@ export default function Home() {
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">科室</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">性别</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">年龄</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">就诊日期</th>
+                  <th 
+                    className="text-left px-3 py-2.5 text-xs font-medium text-gray-600 cursor-pointer hover:text-blue-600"
+                    onClick={() => handleSort('zdrq')}
+                  >
+                    就诊日期 {sortField === 'zdrq' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">诊断</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">诊断代码</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">处方金额</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">医生</th>
+                  <th 
+                    className="text-left px-3 py-2.5 text-xs font-medium text-gray-600 cursor-pointer hover:text-blue-600"
+                    onClick={() => handleSort('cfje')}
+                  >
+                    处方金额 {sortField === 'cfje' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    className="text-left px-3 py-2.5 text-xs font-medium text-gray-600 cursor-pointer hover:text-blue-600"
+                    onClick={() => handleSort('doctor_name')}
+                  >
+                    医生 {sortField === 'doctor_name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
