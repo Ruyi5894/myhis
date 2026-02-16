@@ -88,8 +88,8 @@ export default function Home() {
   
   const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
-  const [excludeSimple, setExcludeSimple] = useState(false);
-  const [selectedDept, setSelectedDept] = useState('');
+  const [excludeSimple, setExcludeSimple] = useState(true);
+  const [selectedDept, setSelectedDept] = useState('3120'); // 全科
   const [departments, setDepartments] = useState<{Ksdm: string; Ksmc: string}[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [doctors, setDoctors] = useState<{Ygdm: string; doctor_name: string}[]>([]);
