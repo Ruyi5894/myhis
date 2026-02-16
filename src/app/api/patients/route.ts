@@ -91,7 +91,7 @@ export async function GET(request: Request) {
             zd.zlh,
           zd.jbxxbh,
           ISNULL(p.Xm, '未知') AS xm,
-          CASE ISNULL(p.Xb, 0) WHEN 0 THEN '女' WHEN 1 THEN '男' ELSE '未知' END AS xb_text,
+          CASE ISNULL(p.Xb, 0) WHEN 0 THEN '男' WHEN 1 THEN '女' ELSE '未知' END AS xb_text,
           p.Csny AS csny,
           p.Sfz AS sfz,
           p.Dhhm AS lxdh,

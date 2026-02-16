@@ -554,11 +554,11 @@ export default function Home() {
                         <div className="font-medium text-gray-900">{formatText(patient.xm)}</div>
                         <div className="text-xs text-gray-500">{formatText(patient.sfz)}</div>
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {formatText(patient.ksdm_text) || '-'}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-600">{formatText(patient.xb_text)}</td>
-                      <td className="px-3 py-3 text-sm text-gray-600">
+                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{formatText(patient.xb_text)}</td>
+                      <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {patient.csny ? Math.floor((new Date().getTime() - new Date(patient.csny).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : '-'}岁
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-600">
@@ -574,7 +574,7 @@ export default function Home() {
                       <td className="px-3 py-3 text-sm font-medium text-gray-900">
                         {patient.cfje ? `¥ ${patient.cfje.toFixed(2)}` : '-'}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-900">
+                      <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
                         {formatText(patient.doctor_name) || '-'}
                       </td>
                     </tr>

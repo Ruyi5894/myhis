@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.19',
+  current: '1.7.20',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -45,6 +45,7 @@ export const VERSION = {
     { version: '1.7.17', date: '2026-02-16', content: '修复：医生关联改为就诊医生(Zdys)而非挂号医生' },
     { version: '1.7.18', date: '2026-02-16', content: '新增：点击表头可按就诊日期、处方金额、医生姓名排序' },
     { version: '1.7.19', date: '2026-02-16', content: '修复：恢复门诊病历明细中的收费明细、处方明细等模块' },
+    { version: '1.7.20', date: '2026-02-16', content: '修复：性别显示反了，Xb=0为男，Xb=1为女' },
   ],
 };
 

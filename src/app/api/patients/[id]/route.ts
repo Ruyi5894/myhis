@@ -131,7 +131,7 @@ export async function GET(
       data: {
         basicInfo: {
           name: basic.Xm?.trim() || '未知',
-          gender: basic.Xb === 1 ? '男' : (basic.Xb === 0 ? '女' : '未知'),
+          gender: basic.Xb === 1 ? '女' : (basic.Xb === 0 ? '男' : '未知'),
           age: age + '岁',
           cardNo: basic.Sfz?.trim() || '-',
           phone: basic.Dhhm?.trim() || '-',
