@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.16',
+  current: '1.7.17',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -42,6 +42,7 @@ export const VERSION = {
     { version: '1.7.14', date: '2026-02-16', content: '新增：医生筛选功能，状态栏改为显示医生姓名' },
     { version: '1.7.15', date: '2026-02-16', content: '修复：移除不存在的JB_YGDMK表引用，修复搜索无结果问题' },
     { version: '1.7.16', date: '2026-02-16', content: '修复：关联YBsjcj_JB_ZGBMK表显示医生姓名，修复详情页医生姓名显示' },
+    { version: '1.7.17', date: '2026-02-16', content: '修复：医生关联改为就诊医生(Zdys)而非挂号医生' },
   ],
 };
 

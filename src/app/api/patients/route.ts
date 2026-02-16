@@ -118,7 +118,7 @@ export async function GET(request: Request) {
           GROUP BY y.zlh
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
-        LEFT JOIN YBsjcj_JB_ZGBMK doc ON g.Zgdm = doc.zgdm
+        LEFT JOIN YBsjcj_JB_ZGBMK doc ON zd.zzys = doc.zgdm
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
         WHERE 1=1 ${keywordCondition}${deptCondition}${doctorCondition}
         ${excludeSimple ? ` AND (
@@ -208,11 +208,11 @@ export async function GET(request: Request) {
     `;
     const deptResult = await pool.request().query(deptQuery);
 
-    // 获取当前搜索结果中的医生列表
+    // 获取当前搜索结果中的医生列表 - 使用就诊医生(Zdys)
     const doctorQuery = `
-      SELECT DISTINCT g.Zgdm AS Ygdm, ISNULL(doc.zgxm, CAST(g.Zgdm AS VARCHAR)) AS doctor_name
+      SELECT DISTINCT y.Zdys AS Ygdm, ISNULL(doc.zgxm, CAST(y.Zdys AS VARCHAR)) AS doctor_name
       FROM (
-        SELECT y.zlh
+        SELECT y.zlh, y.Zdys
         FROM MZYSZ_YSZDK y
         WHERE 1=1 ${dateCondition}
         ${keywordCondition.replace(/zd\./g, 'y.')}
@@ -226,9 +226,8 @@ export async function GET(request: Request) {
           AND y.xbs NOT LIKE '%继续用药%' AND y.xbs NOT LIKE '%按时服药%'
         )` : ''}
       ) y
-      INNER JOIN GH_MXXXK g ON y.zlh = g.zlh
-      LEFT JOIN YBsjcj_JB_ZGBMK doc ON g.Zgdm = doc.zgdm
-      WHERE g.Zgdm IS NOT NULL
+      INNER JOIN YBsjcj_JB_ZGBMK doc ON y.Zdys = doc.zgdm
+      WHERE y.Zdys IS NOT NULL AND y.Zdys > 0
       ORDER BY doc.zgxm
     `;
     const doctorResult = await pool.request().query(doctorQuery);

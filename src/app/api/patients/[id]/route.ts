@@ -47,11 +47,10 @@ export async function GET(
           y.zlh, y.jbxxbh, p.Xm, p.Xb, p.Csny, p.Sfz, p.Dhhm, p.Jtdz, p.Zy,
           y.zdrq, y.Zdmc, y.Zddm, y.Zs, y.xbs, y.Tj, y.Bz, y.Mb, y.Xt, y.Tw,
           y.ssy AS ksdm, y.Zdys, y.Szy,
-          g.Zgdm, doc.zgxm AS doctor_name
+          doc.zgxm AS doctor_name
         FROM MZYSZ_YSZDK y
         LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
-        LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
-        LEFT JOIN YBsjcj_JB_ZGBMK doc ON g.Zgdm = doc.zgdm
+        LEFT JOIN YBsjcj_JB_ZGBMK doc ON y.Zdys = doc.zgdm
         WHERE y.zlh = @zlh
         ORDER BY y.zdrq DESC
       `);
