@@ -48,50 +48,37 @@ function generateCacheKey(patientData: any, weights?: any[]): string {
   return Buffer.from(JSON.stringify(keyData)).toString('base64');
 }
 
-// 生成固定结果的提示词（重点识别错误）
+// 生成更具体的提示词
 function generateStrictPrompt(patientData: any, categoriesText: string): string {
-  return `你是一位资深医学专家，负责审核门诊病历，找出其中的错误、遗漏和不合理之处。
+  return `你是门诊病历质量审核专家。请严格按照以下病历内容进行评分，不要套用模板。
 
-病历信息：
-- 患者：${patientData.name || '未知'}，${patientData.gender || '未知'}，${patientData.age || '未知'}岁
-- 就诊日期：${patientData.visitDate || '未知'}
-- 科室：${patientData.dept || '未知'}
-- 主诉：${patientData.chiefComplaint || '未记录'}
-- 现病史：${patientData.presentIllness || '未记录'}
-- 既往史：${patientData.pastHistory || '未记录'}
-- 体格检查：${patientData.physicalExam || '未记录'}
-- 初步诊断：${patientData.diagnosis || '未记录'}
-- 处理措施：${patientData.treatment || '未记录'}
+【病历原文内容】
+主诉：${patientData.chiefComplaint || '未记录'}
+现病史：${patientData.presentIllness || '未记录'}
+既往史：${patientData.pastHistory || '未记录'}
+体格检查：${patientData.physicalExam || '未记录'}
+诊断：${patientData.diagnosis || '未记录'}
+处理措施：${patientData.treatment || '未记录'}
 
-请重点检查以下错误类型：
+【审核要求】
+1. 逐字检查上述内容，找出具体问题
+2. 问题必须引用原文原字，例如："主诉中'XXX'缺少时间描述"
+3. 不要使用"内容过于简单"、"信息不完整"等笼统表述
 
-【关键错误】（必须修改）：
-- 诊断与症状不符
-- 处理措施与诊断无关
-- 用药剂量明显错误
-- 漏写必要信息（如性别、年龄）
-
-【常见问题】（建议修改）：
-- 主诉缺少时间（如只写"咽痛"，应写"咽痛3天"）
-- 主诉缺少主要症状
-- 现病史过于简单（少于20字）
-- 既往史空白
-- 体格检查缺失
-- 检查/用药与诊断无关
-- 病历格式不规范
-
-请输出JSON格式的审核结果：
+【输出格式】（必须是有效JSON）
 {
-  "totalScore": 评分（100-错误扣分）,
-  "errorCount": 错误总数,
-  "criticalErrors": [{"type": "关键错误/常见问题", "content": "具体问题描述", "location": "字段位置"}],
-  "suggestions": ["改进建议1", "改进建议2"],
-  "strengths": ["病历亮点"],
-  "summary": "整体评价（30字以内）",
-  "isQualified": true/false  // 是否合格（有无关键错误）
+  "totalScore": 85,
+  "errorCount": 2,
+  "criticalErrors": [
+    {"type": "关键错误", "content": "具体问题引用原文", "location": "字段名"}
+  ],
+  "suggestions": ["具体改进建议"],
+  "strengths": ["具体亮点"],
+  "summary": "20字以内的具体评价",
+  "isQualified": false
 }
 
-只输出JSON，不要有其他文字。`;
+只输出JSON，不要其他文字。`;
 }
 
 export async function POST(request: Request) {
