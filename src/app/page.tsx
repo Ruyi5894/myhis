@@ -944,7 +944,7 @@ export default function Home() {
                                   {formatText(item.ypsypldm)}
                                 </td>
                                 <td className="px-4 py-2 text-center text-gray-600">
-                                  {item.ypyl || '-'}
+                                  {item.ypyl ? item.ypyl + 'mg' : '-'}
                                 </td>
                                 <td className="px-4 py-2 text-center text-blue-600 font-medium">
                                   {calculateDays(item)}
