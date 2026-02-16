@@ -5,7 +5,7 @@ import {
   Calendar, Search, RefreshCw, Hospital,
   ChevronLeft, ChevronRight, Filter, X,
   User, Stethoscope, Pill, DollarSign,
-  StickyNote, Activity, ClipboardList, Star, Settings
+  StickyNote, Activity, ClipboardList, Star, Settings, AlertTriangle
 } from 'lucide-react';
 import SCORING_CONFIG from '@/config/scoring';
 
@@ -42,7 +42,9 @@ interface Patient {
 }
 
 interface PatientDetail {
+  zlh?: number;
   basicInfo: {
+    zlh?: number;
     name: string;
     gender: string;
     age: string;
@@ -111,6 +113,8 @@ export default function Home() {
   const [scoringResult, setScoringResult] = useState<any>(null);
   const [scoringLoading, setScoringLoading] = useState(false);
   const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
+  const [medicationAnalysis, setMedicationAnalysis] = useState<any>(null);
+  const [medicationAnalysisLoading, setMedicationAnalysisLoading] = useState(false);
 
   // 获取科室列表 - 从搜索结果中动态获取
   useEffect(() => {
@@ -161,6 +165,24 @@ export default function Home() {
     e.preventDefault();
     setPage(1);
     fetchPatients();
+  };
+
+  // 获取用药分析
+  const fetchMedicationAnalysis = async (zlh: number) => {
+    setMedicationAnalysisLoading(true);
+    setMedicationAnalysis(null);
+    try {
+      const res = await fetch(`/api/patients/${zlh}/medicationAnalysis`);
+      const data = await res.json();
+      if (data.success) {
+        setMedicationAnalysis(data.data);
+      } else {
+        console.error('用药分析失败:', data.error);
+      }
+    } catch (error) {
+      console.error('获取用药分析失败:', error);
+    }
+    setMedicationAnalysisLoading(false);
   };
 
   // 排序处理
@@ -982,6 +1004,128 @@ export default function Home() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 用药分析 - 1年用药分析 */}
+      {selectedPatient && (
+        <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <Pill className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800">用药分析</h3>
+            </div>
+            {!medicationAnalysis && !medicationAnalysisLoading && (
+              <button
+                onClick={() => {
+                  const zlh = selectedPatient.basicInfo?.zlh || selectedPatient.zlh;
+                  if (zlh) fetchMedicationAnalysis(zlh);
+                }}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Activity className="w-4 h-4" />
+                分析1年用药
+              </button>
+            )}
+          </div>
+
+          {medicationAnalysisLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-3 text-gray-600">正在分析...</span>
+            </div>
+          )}
+
+          {medicationAnalysis && !medicationAnalysisLoading && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-800">{medicationAnalysis.patientInfo?.visitCount || 0}</div>
+                    <div className="text-xs text-gray-500">就诊次数</div>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-800">{medicationAnalysis.patientInfo?.prescriptionCount || 0}</div>
+                    <div className="text-xs text-gray-500">处方次数</div>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="text-2xl font-bold text-gray-800">{medicationAnalysis.summary?.totalMedications || 0}</div>
+                    <div className="text-xs text-gray-500">药品种类</div>
+                  </div>
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">{medicationAnalysis.summary?.medicationsWithIssues || 0}</div>
+                    <div className="text-xs text-red-500">有问题药品</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 text-center">
+                  分析区间: {medicationAnalysis.patientInfo?.analysisRange?.from} 至 {medicationAnalysis.patientInfo?.analysisRange?.to}
+                </div>
+              </div>
+
+              {(medicationAnalysis.medicationIssues?.length > 0 || medicationAnalysis.sameTypeIssues?.length > 0) && (
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    用药问题预警
+                  </h4>
+                  {medicationAnalysis.medicationIssues?.map((issue: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-2 py-2 text-sm">
+                      <span className="w-2 h-2 bg-red-500 rounded-full mt-1.5"></span>
+                      <span className="text-red-700">{issue.medication}: {issue.message}</span>
+                    </div>
+                  ))}
+                  {medicationAnalysis.sameTypeIssues?.map((issue: any, idx: number) => (
+                    <div key={`same-${idx}`} className="flex items-start gap-2 py-2 text-sm">
+                      <span className="w-2 h-2 bg-orange-500 rounded-full mt-1.5"></span>
+                      <span className="text-orange-700">{issue.message} ({issue.medications?.join('、')})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-gray-600">药品名称</th>
+                      <th className="px-4 py-2 text-center text-gray-600">累计天数</th>
+                      <th className="px-4 py-2 text-center text-gray-600">处方次数</th>
+                      <th className="px-4 py-2 text-left text-gray-600">问题</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {medicationAnalysis.medications?.map((med: any, idx: number) => {
+                      const hasIssue = med.issues?.length > 0 || med.totalDays > 365;
+                      return (
+                        <tr key={idx} className={hasIssue ? 'bg-red-50' : ''}>
+                          <td className="px-4 py-2 text-gray-900">{med.name}</td>
+                          <td className="px-4 py-2 text-center">
+                            <span className={med.totalDays > 365 ? 'text-red-600 font-bold' : 'text-gray-600'}>
+                              {med.totalDays}天
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-center text-gray-600">{med.prescriptionCount}</td>
+                          <td className="px-4 py-2 text-left">
+                            {med.issues?.length > 0 && (
+                              <span className="text-yellow-600 text-xs">{med.issues[0].message}</span>
+                            )}
+                            {med.totalDays > 365 && (
+                              <span className="text-red-600 text-xs block">超过1年用量</span>
+                            )}
+                            {!med.issues?.length && med.totalDays <= 365 && (
+                              <span className="text-green-600 text-xs">✓ 正常</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.28',
+  current: '1.7.29',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
