@@ -26,13 +26,12 @@ export async function GET() {
   try {
     const pool = await getPool();
     
-    // 只返回有病历记录的科室
+    // 从病历表直接获取有记录的科室代码
     const query = `
-      SELECT DISTINCT k.Ksdm, k.Ksmc
-      FROM JB_KSBMK k
-      INNER JOIN GH_MXXXK g ON k.Ksdm = g.Ksdm
-      INNER JOIN MZYSZ_YSZDK y ON g.zlh = y.zlh
-      WHERE k.Ksdm IS NOT NULL AND k.Ksdm != '' AND k.Ksdm != '1000'
+      SELECT DISTINCT y.ssy AS Ksdm, k.Ksmc
+      FROM MZYSZ_YSZDK y
+      LEFT JOIN JB_KSBMK k ON y.ssy = k.Ksdm
+      WHERE y.ssy IS NOT NULL AND y.ssy != '' AND y.ssy != '1000'
       ORDER BY k.Ksmc
     `;
     
