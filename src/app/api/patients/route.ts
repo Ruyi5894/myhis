@@ -95,8 +95,8 @@ export async function GET(request: Request) {
           (SELECT ISNULL(SUM(cfje), 0) FROM MZYSZ_CFK WHERE brzlh = zd.zlh) AS cfje,
           (SELECT COUNT(*) FROM MZYSZ_CFK WHERE brzlh = zd.zlh) AS cf_count,
           (SELECT COUNT(*) FROM MZYSZ_CFMXK WHERE cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = zd.zlh)) AS yp_count,
-          zd.szy AS doctor_name,
-          zd.szy AS doctor_code
+          ISNULL(doc.zgxm, CAST(zd.zzys AS VARCHAR)) AS doctor_name,
+          zd.zzys AS doctor_code
         FROM (
           SELECT 
             y.zlh,
@@ -118,6 +118,7 @@ export async function GET(request: Request) {
           GROUP BY y.zlh
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
+        LEFT JOIN YBsjcj_JB_ZGBMK doc ON g.Zgdm = doc.zgdm
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
         WHERE 1=1 ${keywordCondition}${deptCondition}${doctorCondition}
         ${excludeSimple ? ` AND (
@@ -209,9 +210,9 @@ export async function GET(request: Request) {
 
     // 获取当前搜索结果中的医生列表
     const doctorQuery = `
-      SELECT DISTINCT y.szy AS Ygdm, y.szy AS doctor_name
+      SELECT DISTINCT g.Zgdm AS Ygdm, ISNULL(doc.zgxm, CAST(g.Zgdm AS VARCHAR)) AS doctor_name
       FROM (
-        SELECT y.zlh, y.szy
+        SELECT y.zlh
         FROM MZYSZ_YSZDK y
         WHERE 1=1 ${dateCondition}
         ${keywordCondition.replace(/zd\./g, 'y.')}
@@ -225,8 +226,10 @@ export async function GET(request: Request) {
           AND y.xbs NOT LIKE '%继续用药%' AND y.xbs NOT LIKE '%按时服药%'
         )` : ''}
       ) y
-      WHERE y.szy IS NOT NULL AND y.szy != ''
-      ORDER BY y.szy
+      INNER JOIN GH_MXXXK g ON y.zlh = g.zlh
+      LEFT JOIN YBsjcj_JB_ZGBMK doc ON g.Zgdm = doc.zgdm
+      WHERE g.Zgdm IS NOT NULL
+      ORDER BY doc.zgxm
     `;
     const doctorResult = await pool.request().query(doctorQuery);
 
