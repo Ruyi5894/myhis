@@ -5,8 +5,16 @@ import {
   Calendar, Search, RefreshCw, Hospital,
   ChevronLeft, ChevronRight, Filter, X,
   User, Stethoscope, Pill, DollarSign,
-  StickyNote, Activity, ClipboardList
+  StickyNote, Activity, ClipboardList, Star, Settings
 } from 'lucide-react';
+import SCORING_CONFIG from '@/config/scoring';
+
+interface ScoringCategory {
+  id: string;
+  name: string;
+  weight: number;
+  description: string;
+}
 
 interface Patient {
   zlh: number;
@@ -22,6 +30,8 @@ interface Patient {
   zhushu: string;
   ssy: number;
   szy: number;
+  ksdm: string;
+  ksdm_text: string;
   fymc: string;
   ghf: number;
   cfje: number;
@@ -83,6 +93,15 @@ export default function Home() {
 
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  
+  // 评分相关状态
+  const [showScoringSettings, setShowScoringSettings] = useState(false);
+  const [scoringWeights, setScoringWeights] = useState<ScoringCategory[]>(
+    SCORING_CONFIG.categories.map(c => ({ ...c }))
+  );
+  const [scoringResult, setScoringResult] = useState<any>(null);
+  const [scoringLoading, setScoringLoading] = useState(false);
+  const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
 
   useEffect(() => {
     fetchPatients();
@@ -135,6 +154,59 @@ export default function Home() {
     
     setDetailLoading(false);
   };
+
+  // 评分函数
+  const handleScorePatient = async (patient: PatientDetail) => {
+    setSelectedPatientForScoring(patient);
+    setScoringResult(null);
+    setScoringLoading(true);
+    
+    try {
+      const response = await fetch('/api/scoring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientData: {
+            name: patient.basicInfo.name,
+            gender: patient.basicInfo.gender,
+            age: patient.basicInfo.age,
+            visitDate: patient.basicInfo.visitDate,
+            dept: patient.basicInfo.dept,
+            chiefComplaint: patient.medicalRecord.chiefComplaint,
+            presentIllness: patient.medicalRecord.presentIllness,
+            pastHistory: patient.medicalRecord.pastHistory,
+            physicalExam: patient.medicalRecord.physicalExam,
+            diagnosis: patient.medicalRecord.preliminaryDiagnosis,
+            treatment: patient.medicalRecord.treatment,
+          },
+          weights: scoringWeights.map(c => `${c.name}（${c.weight}分）：${c.description}`),
+          zlh: patient.basicInfo.cardNo?.slice(-8),  // 病历号后8位作为唯一标识
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setScoringResult(data.data);
+      } else {
+        alert('评分失败: ' + data.error);
+      }
+    } catch (error) {
+      console.error('评分失败:', error);
+      alert('评分失败，请重试');
+    }
+    
+    setScoringLoading(false);
+  };
+
+  // 更新权重
+  const updateWeight = (id: string, weight: number) => {
+    setScoringWeights(prev => prev.map(c => 
+      c.id === id ? { ...c, weight } : c
+    ));
+  };
+
+  // 计算总权重
+  const totalWeight = scoringWeights.reduce((sum, c) => sum + c.weight, 0);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr || dateStr === 'null' || dateStr === '-') return '-';
@@ -362,6 +434,7 @@ export default function Home() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">姓名</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">科室</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">性别</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">年龄</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">就诊日期</th>
@@ -374,7 +447,7 @@ export default function Home() {
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-3 py-12 text-center text-gray-500">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                         加载中...
@@ -383,7 +456,7 @@ export default function Home() {
                   </tr>
                 ) : patients.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-3 py-12 text-center text-gray-500">
                       未找到门诊记录
                     </td>
                   </tr>
@@ -397,6 +470,9 @@ export default function Home() {
                       <td className="px-3 py-3">
                         <div className="font-medium text-gray-900">{formatText(patient.xm)}</div>
                         <div className="text-xs text-gray-500">{formatText(patient.sfz)}</div>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-600">
+                        {formatText(patient.ksdm_text) || '-'}
                       </td>
                       <td className="px-3 py-3 text-sm text-gray-600">{formatText(patient.xb_text)}</td>
                       <td className="px-3 py-3 text-sm text-gray-600">
@@ -466,12 +542,29 @@ export default function Home() {
                   <p className="text-blue-100 text-sm">依据国家卫健委规范</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedPatient(null)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6 text-white" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleScorePatient(selectedPatient)}
+                  disabled={scoringLoading}
+                  className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <Star className="w-4 h-4" />
+                  {scoringLoading ? '评分中...' : 'AI评分'}
+                </button>
+                <button 
+                  onClick={() => setShowScoringSettings(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  title="评分设置"
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+                <button 
+                  onClick={() => setSelectedPatient(null)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
             </div>
             
             {/* 弹窗内容 */}
@@ -734,6 +827,183 @@ export default function Home() {
           <div className="bg-white rounded-xl p-8 shadow-xl">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="text-gray-600 mt-4 text-center">加载中...</p>
+          </div>
+        </div>
+      )}
+
+      {/* AI评分结果弹窗 */}
+      {scoringResult && selectedPatientForScoring && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <Star className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">AI 病史评分结果</h2>
+                  <p className="text-yellow-100 text-sm">基于卫健委评分标准</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setScoringResult(null)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              {/* 总分 */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-lg">
+                  <span className="text-4xl font-bold text-white">{scoringResult.totalScore || 0}</span>
+                  <span className="text-lg text-white/80 ml-1">分</span>
+                </div>
+                <p className="text-gray-600 mt-2">
+                  总分（满分100分）
+                  {scoringResult.cached && (
+                    <span className="ml-2 text-green-600 text-sm">✓ 已缓存</span>
+                  )}
+                </p>
+              </div>
+
+              {/* 各项评分 */}
+              {scoringResult.scores && scoringResult.scores.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">各项评分</h3>
+                  <div className="space-y-3">
+                    {scoringResult.scores.map((item: any, idx: number) => (
+                      <div key={idx} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-gray-900">{item.category}</span>
+                          <span className="text-sm">
+                            <span className="font-semibold text-yellow-600">{item.score}</span>
+                            <span className="text-gray-400">/{item.maxScore}</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-yellow-500 h-2 rounded-full transition-all"
+                            style={{ width: `${(item.score / item.maxScore) * 100}%` }}
+                          ></div>
+                        </div>
+                        {item.comment && (
+                          <p className="text-sm text-gray-600 mt-2">{item.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 亮点 */}
+              {scoringResult.strengths && scoringResult.strengths.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-green-700 mb-2">✓ 病历亮点</h3>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {scoringResult.strengths.map((item: string, idx: number) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* 改进建议 */}
+              {scoringResult.improvements && scoringResult.improvements.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-blue-700 mb-2">→ 改进建议</h3>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {scoringResult.improvements.map((item: string, idx: number) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* 总结 */}
+              {scoringResult.summary && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-700 mb-2">整体评价</h3>
+                  <p className="text-sm text-gray-700">{scoringResult.summary}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 评分设置弹窗 */}
+      {showScoringSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Settings className="w-6 h-6 text-white" />
+                <h2 className="text-xl font-bold text-white">评分权重设置</h2>
+              </div>
+              <button 
+                onClick={() => setShowScoringSettings(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">评分项权重</h3>
+                <span className={`text-sm font-medium ${totalWeight === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                  总权重: {totalWeight}/100
+                </span>
+              </div>
+              
+              <div className="space-y-4">
+                {scoringWeights.map((category) => (
+                  <div key={category.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-900">{category.name}</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="30"
+                          value={category.weight}
+                          onChange={(e) => updateWeight(category.id, parseInt(e.target.value))}
+                          className="w-24"
+                        />
+                        <span className="w-12 text-right font-medium text-gray-900">{category.weight}</span>
+                        <span className="text-gray-500">分</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">{category.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              {totalWeight !== 100 && (
+                <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  ⚠️ 权重总和应为 100 分，当前为 {totalWeight} 分
+                </div>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => {
+                    setScoringWeights(SCORING_CONFIG.categories.map(c => ({ ...c })));
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  重置默认
+                </button>
+                <button
+                  onClick={() => setShowScoringSettings(false)}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  保存设置
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -74,6 +74,8 @@ export async function GET(request: Request) {
           zd.zhushu,
           zd.ssy,
           zd.szy,
+          zd.Ksdm,
+          zd.Ksmc AS ksdm_text,
           g.Fymc AS fymc,
           g.Ghf AS ghf,
           (SELECT ISNULL(SUM(cfje), 0) FROM MZYSZ_CFK WHERE brzlh = zd.zlh) AS cfje,
@@ -82,18 +84,22 @@ export async function GET(request: Request) {
           '已完成' AS status
         FROM (
           SELECT 
-            zlh,
-            MAX(zdrq) AS zdrq,
-            MAX(jbxxbh) AS jbxxbh,
+            y.zlh,
+            MAX(y.zdrq) AS zdrq,
+            MAX(y.jbxxbh) AS jbxxbh,
+            MAX(g.Ksdm) AS Ksdm,
+            MAX(k.Ksmc) AS Ksmc,
             STRING_AGG(CONVERT(VARCHAR(500), ISNULL(d.zdmc, '')), '; ') AS ryzd,
             STRING_AGG(CONVERT(VARCHAR(200), ISNULL(y.Zddm, '')), '; ') AS zddm,
             MAX(CONVERT(VARCHAR(500), y.xbs)) AS zhushu,
-            MAX(ssy) AS ssy,
-            MAX(szy) AS szy
+            MAX(y.ssy) AS ssy,
+            MAX(y.szy) AS szy
           FROM MZYSZ_YSZDK y
           LEFT JOIN JB_ZDDMK d ON RTRIM(y.Zddm) = RTRIM(d.zddm)
+          LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
+          LEFT JOIN JB_KSBMK k ON g.Ksdm = k.Ksdm
           WHERE 1=1 ${dateCondition}
-          GROUP BY zlh
+          GROUP BY y.zlh
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
@@ -110,6 +116,12 @@ export async function GET(request: Request) {
           AND zd.zhushu NOT LIKE '%取药%'
           AND zd.zhushu NOT LIKE '%常规复查%'
           AND zd.zhushu NOT LIKE '%复查%'
+          AND zd.zhushu NOT LIKE '%目前病情稳定%'
+          AND zd.zhushu NOT LIKE '%维持原治疗%'
+          AND zd.zhushu NOT LIKE '%维持原方案%'
+          AND zd.zhushu NOT LIKE '%继续服药%'
+          AND zd.zhushu NOT LIKE '%继续用药%'
+          AND zd.zhushu NOT LIKE '%按时服药%'
         )` : ''}
       ) AS MZPage
       WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
@@ -142,6 +154,12 @@ export async function GET(request: Request) {
           AND y.xbs NOT LIKE '%取药%'
           AND y.xbs NOT LIKE '%常规复查%'
           AND y.xbs NOT LIKE '%复查%'
+          AND y.xbs NOT LIKE '%目前病情稳定%'
+          AND y.xbs NOT LIKE '%维持原治疗%'
+          AND y.xbs NOT LIKE '%维持原方案%'
+          AND y.xbs NOT LIKE '%继续服药%'
+          AND y.xbs NOT LIKE '%继续用药%'
+          AND y.xbs NOT LIKE '%按时服药%'
         )
       `;
     }
