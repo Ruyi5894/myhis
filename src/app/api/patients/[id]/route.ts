@@ -46,6 +46,7 @@ export async function GET(
         y.zdrq AS ryrq,
         y.Zdmc AS ryzd,                 -- 初步诊断（诊断名称）
         y.Zddm AS zddm,                -- 诊断代码
+        y.Zs AS zs,                    -- 主诉
         y.xbs AS xbs,                  -- 现病史
         y.Tj AS tjbg,                  -- 体格检查
         y.Bz AS clcs,                  -- 处理措施/备注
@@ -151,8 +152,8 @@ export async function GET(
         },
         // 病历记录
         medicalRecord: {
-          // 主诉 - 从现病史提取第一句或为空
-          chiefComplaint: basic.xbs?.trim()?.split('。')[0] + '。' || '-',
+          // 主诉 - 使用 zs 字段
+          chiefComplaint: basic.zs?.trim() || (basic.xbs?.trim() ? '（从现病史提取）' + basic.xbs?.trim()?.split('。')[0] + '。' : '-'),
           // 现病史
           presentIllness: basic.xbs?.trim() || '-',
           // 既往史 - 数据库暂无此字段

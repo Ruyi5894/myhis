@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.1',
+  current: '1.7.2',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -27,6 +27,7 @@ export const VERSION = {
     { version: '1.6.0', date: '2026-02-16', content: '纯门诊系统，按卫健委规范重新组织病史结构，添加诊断名称和药品规格关联，添加简易门诊过滤' },
     { version: '1.7.0', date: '2026-02-16', content: '新增AI病史评分功能：调用Ollama(qwen3-vl:8b)进行7维度评分，支持权重配置，评分结果缓存避免重复评价' },
     { version: '1.7.1', date: '2026-02-16', content: '优化AI评分规则：重点识别病历错误和问题，区分关键错误和常见问题，给出具体改进建议' },
+    { version: '1.7.2', date: '2026-02-16', content: '修复主诉显示问题：使用 zs 字段存储主诉，而非从现病史提取' },
   ],
 };
 
