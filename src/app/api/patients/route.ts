@@ -173,12 +173,37 @@ export async function GET(request: Request) {
     const countResult = await pool.request().query(countQuery);
     const total = countResult.recordset[0].cnt;
 
+    // 获取当前搜索结果中的科室列表
+    const deptQuery = `
+      SELECT DISTINCT zd.ssy AS Ksdm, k.Ksmc
+      FROM (
+        SELECT y.zlh, y.ssy
+        FROM MZYSZ_YSZDK y
+        WHERE 1=1 ${dateCondition}
+        ${keywordCondition.replace(/zd\./g, 'y.')}
+        ${excludeSimple ? ` AND (
+          y.xbs NOT LIKE '%复诊%' AND y.xbs NOT LIKE '%配药%' AND y.xbs NOT LIKE '%开药%'
+          AND y.xbs NOT LIKE '%随访%' AND y.xbs NOT LIKE '%随诊%' AND y.xbs NOT LIKE '%续方%'
+          AND y.xbs NOT LIKE '%续开%' AND y.xbs NOT LIKE '%拿药%' AND y.xbs NOT LIKE '%取药%'
+          AND y.xbs NOT LIKE '%常规复查%' AND y.xbs NOT LIKE '%复查%'
+          AND y.xbs NOT LIKE '%目前病情稳定%' AND y.xbs NOT LIKE '%维持原治疗%'
+          AND y.xbs NOT LIKE '%维持原方案%' AND y.xbs NOT LIKE '%继续服药%'
+          AND y.xbs NOT LIKE '%继续用药%' AND y.xbs NOT LIKE '%按时服药%'
+        )` : ''}
+      ) zd
+      LEFT JOIN JB_KSBMK k ON zd.ssy = k.Ksdm
+      WHERE zd.ssy IS NOT NULL AND zd.ssy != '' AND zd.ssy != '1000'
+      ORDER BY k.Ksmc
+    `;
+    const deptResult = await pool.request().query(deptQuery);
+
     return NextResponse.json({
       success: true,
       data: mzResult.recordset,
       total: total,
       page,
       pageSize,
+      departments: deptResult.recordset,
     });
   } catch (error) {
     console.error('Database error:', error);

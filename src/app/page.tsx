@@ -105,22 +105,10 @@ export default function Home() {
   const [scoringLoading, setScoringLoading] = useState(false);
   const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
 
-  // 获取科室列表
+  // 获取科室列表 - 从搜索结果中动态获取
   useEffect(() => {
-    fetchDepartments();
+    // 科室列表从搜索结果中获取，这里不需要单独调用
   }, []);
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch('/api/patients/departments');
-      const data = await res.json();
-      if (data.success) {
-        setDepartments(data.data);
-      }
-    } catch (error) {
-      console.error('获取科室列表失败:', error);
-    }
-  };
 
   useEffect(() => {
     fetchPatients();
@@ -143,6 +131,10 @@ export default function Home() {
       if (data.success) {
         setPatients(data.data);
         setTotal(data.total);
+        // 从搜索结果中获取科室列表
+        if (data.departments) {
+          setDepartments(data.departments);
+        }
       } else {
         console.error('Error:', data.error);
       }
