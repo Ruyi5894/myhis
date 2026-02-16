@@ -31,6 +31,7 @@ export async function GET(request: Request) {
   const endDate = searchParams.get('endDate') || '';
   const excludeSimple = searchParams.get('excludeSimple') === 'true';
   const dept = searchParams.get('dept') || '';  // 科室筛选
+  const doctor = searchParams.get('doctor') || '';  // 医生筛选
 
   try {
     const pool = await getPool();
@@ -62,6 +63,12 @@ export async function GET(request: Request) {
       deptCondition = ` AND zd.Ksdm = '${dept}'`;
     }
 
+    // 医生筛选条件
+    let doctorCondition = '';
+    if (doctor) {
+      doctorCondition = ` AND zd.szy = '${doctor}'`;
+    }
+
     // 按zlh去重，获取主要诊断名称，可排除简易门诊
     const mzQuery = `
       SELECT * FROM (
@@ -88,7 +95,8 @@ export async function GET(request: Request) {
           (SELECT ISNULL(SUM(cfje), 0) FROM MZYSZ_CFK WHERE brzlh = zd.zlh) AS cfje,
           (SELECT COUNT(*) FROM MZYSZ_CFK WHERE brzlh = zd.zlh) AS cf_count,
           (SELECT COUNT(*) FROM MZYSZ_CFMXK WHERE cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = zd.zlh)) AS yp_count,
-          '已完成' AS status
+          ISNULL(doc.Ygxm, zd.szy) AS doctor_name,
+          zd.szy AS doctor_code
         FROM (
           SELECT 
             y.zlh,
@@ -100,7 +108,8 @@ export async function GET(request: Request) {
             STRING_AGG(CONVERT(VARCHAR(200), ISNULL(y.Zddm, '')), '; ') AS zddm,
             MAX(CONVERT(VARCHAR(500), y.xbs)) AS zhushu,
             MAX(y.ssy) AS ssy,
-            MAX(y.szy) AS szy
+            MAX(y.szy) AS szy,
+            MAX(y.Zdys) AS zzys
           FROM MZYSZ_YSZDK y
           LEFT JOIN JB_ZDDMK d ON RTRIM(y.Zddm) = RTRIM(d.zddm)
           LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
@@ -109,8 +118,9 @@ export async function GET(request: Request) {
           GROUP BY y.zlh
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
+        LEFT JOIN JB_YGDMK doc ON zd.szy = doc.Ygdm
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
-        WHERE 1=1 ${keywordCondition}${deptCondition}
+        WHERE 1=1 ${keywordCondition}${deptCondition}${doctorCondition}
         ${excludeSimple ? ` AND (
           zd.zhushu NOT LIKE '%复诊%' 
           AND zd.zhushu NOT LIKE '%配药%' 
@@ -198,6 +208,30 @@ export async function GET(request: Request) {
     `;
     const deptResult = await pool.request().query(deptQuery);
 
+    // 获取当前搜索结果中的医生列表
+    const doctorQuery = `
+      SELECT DISTINCT y.szy AS Ygdm, doc.Ygxm
+      FROM (
+        SELECT y.zlh, y.szy
+        FROM MZYSZ_YSZDK y
+        WHERE 1=1 ${dateCondition}
+        ${keywordCondition.replace(/zd\./g, 'y.')}
+        ${excludeSimple ? ` AND (
+          y.xbs NOT LIKE '%复诊%' AND y.xbs NOT LIKE '%配药%' AND y.xbs NOT LIKE '%开药%'
+          AND y.xbs NOT LIKE '%随访%' AND y.xbs NOT LIKE '%随诊%' AND y.xbs NOT LIKE '%续方%'
+          AND y.xbs NOT LIKE '%续开%' AND y.xbs NOT LIKE '%拿药%' AND y.xbs NOT LIKE '%取药%'
+          AND y.xbs NOT LIKE '%常规复查%' AND y.xbs NOT LIKE '%复查%'
+          AND y.xbs NOT LIKE '%目前病情稳定%' AND y.xbs NOT LIKE '%维持原治疗%'
+          AND y.xbs NOT LIKE '%维持原方案%' AND y.xbs NOT LIKE '%继续服药%'
+          AND y.xbs NOT LIKE '%继续用药%' AND y.xbs NOT LIKE '%按时服药%'
+        )` : ''}
+      ) y
+      LEFT JOIN JB_YGDMK doc ON y.szy = doc.Ygdm
+      WHERE y.szy IS NOT NULL AND y.szy != ''
+      ORDER BY doc.Ygxm
+    `;
+    const doctorResult = await pool.request().query(doctorQuery);
+
     return NextResponse.json({
       success: true,
       data: mzResult.recordset,
@@ -205,6 +239,7 @@ export async function GET(request: Request) {
       page,
       pageSize,
       departments: deptResult.recordset,
+      doctors: doctorResult.recordset,
     });
   } catch (error) {
     console.error('Database error:', error);

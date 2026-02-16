@@ -37,7 +37,8 @@ interface Patient {
   cfje: number;
   cf_count: number;
   yp_count: number;
-  status: string;
+  doctor_name: string;
+  doctor_code: string;
 }
 
 interface PatientDetail {
@@ -88,6 +89,8 @@ export default function Home() {
   const [excludeSimple, setExcludeSimple] = useState(false);
   const [selectedDept, setSelectedDept] = useState('');
   const [departments, setDepartments] = useState<{Ksdm: string; Ksmc: string}[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [doctors, setDoctors] = useState<{Ygdm: string; Ygxm: string}[]>([]);
   
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -112,7 +115,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchPatients();
-  }, [startDate, endDate, page, excludeSimple, selectedDept]);
+  }, [startDate, endDate, page, excludeSimple, selectedDept, selectedDoctor]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -125,15 +128,19 @@ export default function Home() {
         pageSize: pageSize.toString(),
         excludeSimple: excludeSimple.toString(),
         dept: selectedDept,
+        doctor: selectedDoctor,
       });
       const res = await fetch(`/api/patients?${params}`);
       const data = await res.json();
       if (data.success) {
         setPatients(data.data);
         setTotal(data.total);
-        // 从搜索结果中获取科室列表
+        // 从搜索结果中获取科室和医生列表
         if (data.departments) {
           setDepartments(data.departments);
+        }
+        if (data.doctors) {
+          setDoctors(data.doctors);
         }
       } else {
         console.error('Error:', data.error);
@@ -363,6 +370,21 @@ export default function Home() {
                 ))}
               </select>
             </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">医生：</label>
+              <select
+                value={selectedDoctor}
+                onChange={(e) => { setSelectedDoctor(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[120px]"
+              >
+                <option value="">全部医生</option>
+                {doctors.map((doc) => (
+                  <option key={doc.Ygdm} value={doc.Ygdm}>
+                    {doc.Ygxm || doc.Ygdm}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-center gap-2 ml-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -468,7 +490,7 @@ export default function Home() {
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">诊断</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">诊断代码</th>
                   <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">处方金额</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">状态</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-medium text-gray-600">医生</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -518,10 +540,8 @@ export default function Home() {
                       <td className="px-3 py-3 text-sm font-medium text-gray-900">
                         {patient.cfje ? `¥ ${patient.cfje.toFixed(2)}` : '-'}
                       </td>
-                      <td className="px-3 py-3">
-                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                          {formatText(patient.status)}
-                        </span>
+                      <td className="px-3 py-3 text-sm text-gray-900">
+                        {formatText(patient.doctor_name) || '-'}
                       </td>
                     </tr>
                   ))
