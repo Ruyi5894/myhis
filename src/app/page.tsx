@@ -117,6 +117,8 @@ export default function Home() {
   const [medicationAnalysisLoading, setMedicationAnalysisLoading] = useState(false);
   const [aiMedicationAnalysis, setAiMedicationAnalysis] = useState<any>(null);
   const [aiMedicationAnalysisLoading, setAiMedicationAnalysisLoading] = useState(false);
+  const [medVerifyResult, setMedVerifyResult] = useState<any>(null);
+  const [medVerifyLoading, setMedVerifyLoading] = useState(false);
 
   // 获取科室列表 - 从搜索结果中动态获取
   useEffect(() => {
@@ -188,7 +190,7 @@ export default function Home() {
     setMedicationAnalysisLoading(false);
   };
 
-  // AI用药分析
+  // AI用药合理性分析
   const fetchAIMedicationAnalysis = async (zlh: number) => {
     setAiMedicationAnalysisLoading(true);
     setAiMedicationAnalysis(null);
@@ -204,6 +206,24 @@ export default function Home() {
       console.error('获取AI用药分析失败:', error);
     }
     setAiMedicationAnalysisLoading(false);
+  };
+
+  // 用药数据验证（AI核实剂量是否正确）
+  const fetchMedVerify = async (zlh: number) => {
+    setMedVerifyLoading(true);
+    setMedVerifyResult(null);
+    try {
+      const res = await fetch(`/api/patients/${zlh}/medicationAnalysis/verify`);
+      const data = await res.json();
+      if (data.success) {
+        setMedVerifyResult(data.data);
+      } else {
+        console.error('用药验证失败:', data.error);
+      }
+    } catch (error) {
+      console.error('获取用药验证失败:', error);
+    }
+    setMedVerifyLoading(false);
   };
 
   // 排序处理
@@ -1150,7 +1170,7 @@ export default function Home() {
 
           {/* AI用药分析按钮 */}
           {medicationAnalysis && !aiMedicationAnalysis && !aiMedicationAnalysisLoading && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-4 flex justify-center gap-3">
               <button
                 onClick={() => {
                   const zlh = selectedPatient.basicInfo?.zlh || selectedPatient.zlh;
@@ -1159,7 +1179,17 @@ export default function Home() {
                 className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-lg"
               >
                 <Sparkles className="w-5 h-5" />
-                AI智能分析用药合理性
+                AI智能分析用药
+              </button>
+              <button
+                onClick={() => {
+                  const zlh = selectedPatient.basicInfo?.zlh || selectedPatient.zlh;
+                  if (zlh) fetchMedVerify(zlh);
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-lg"
+              >
+                <AlertTriangle className="w-5 h-5" />
+                AI验证用药数据
               </button>
             </div>
           )}
@@ -1179,6 +1209,65 @@ export default function Home() {
               </h4>
               <div className="bg-white rounded-lg p-4 shadow-sm text-sm text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto">
                 {aiMedicationAnalysis.analysis}
+              </div>
+            </div>
+          )}
+
+          {/* 用药数据验证结果 */}
+          {medVerifyLoading && (
+            <div className="mt-4 flex items-center justify-center py-6 bg-orange-50 rounded-lg">
+              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-3 text-orange-700">AI正在验证用药数据...</span>
+            </div>
+          )}
+
+          {medVerifyResult && !medVerifyLoading && (
+            <div className="mt-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4 border border-orange-100">
+              <h4 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                用药数据AI验证结果
+              </h4>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  {medVerifyResult.hasDosageError ? (
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">⚠️ 发现数据异常</span>
+                  ) : (
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">✓ 数据正常</span>
+                  )}
+                  <span className="text-sm text-gray-600">
+                    可疑药品: {medVerifyResult.questionableCount}种
+                  </span>
+                </div>
+                
+                <p className="text-sm text-gray-700 mb-3">
+                  <strong>结论：</strong>{medVerifyResult.conclusion}
+                </p>
+                
+                <p className="text-sm text-orange-700 mb-3">
+                  <strong>建议：</strong>{medVerifyResult.recommendation}
+                </p>
+
+                {medVerifyResult.verification && medVerifyResult.verification.length > 0 && (
+                  <div className="mt-3 border-t pt-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">详细验证：</p>
+                    {medVerifyResult.verification.map((v: any, idx: number) => (
+                      <div key={idx} className={`p-3 rounded-lg mb-2 ${v.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800">{v.medication}</span>
+                          {v.isCorrect ? (
+                            <span className="text-green-600 text-xs">✓ 正确</span>
+                          ) : (
+                            <span className="text-red-600 text-xs">⚠️ 需核实</span>
+                          )}
+                        </div>
+                        {v.issue && <p className="text-sm text-red-600 mt-1">问题: {v.issue}</p>}
+                        {v.correctDays && <p className="text-sm text-green-700">正确天数: {v.correctDays}天</p>}
+                        {v.reason && <p className="text-xs text-gray-500 mt-1">理由: {v.reason}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
