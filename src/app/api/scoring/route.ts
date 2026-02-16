@@ -54,6 +54,7 @@ function generateStrictPrompt(patientData: any, categoriesText: string): string 
 
 病历信息：
 - 患者：${patientData.name || '未知'}，${patientData.gender || '未知'}，${patientData.age || '未知'}岁
+- 就诊日期：${patientData.visitDate || '未知'}
 - 科室：${patientData.dept || '未知'}
 - 主诉：${patientData.chiefComplaint || '未记录'}
 - 现病史：${patientData.presentIllness || '未记录'}
@@ -62,41 +63,35 @@ function generateStrictPrompt(patientData: any, categoriesText: string): string 
 - 初步诊断：${patientData.diagnosis || '未记录'}
 - 处理措施：${patientData.treatment || '未记录'}
 
-请按以下规则检查病历：
+请重点检查以下错误类型：
 
-【关键错误】（扣20-30分，必须修改）：
-1. 诊断与主诉/现病史症状不符
-2. 处理措施与诊断无关
-3. 用药剂量明显错误
+【关键错误】（必须修改）：
+- 诊断与症状不符
+- 处理措施与诊断无关
+- 用药剂量明显错误
+- 漏写必要信息（如性别、年龄）
 
-【常见问题】（扣5-15分，建议修改）：
-1. 主诉缺少时间（如只写"咽痛"，应写"咽痛3天"）
-2. 主诉缺少主要症状（只有时间没有症状）
-3. 现病史过于简单（少于15字）
-4. 既往史空白
-5. 体格检查缺失或与主诉无关
-6. 处理措施空白
-7. 年龄格式错误（如"78岁岁"）
-8. 科室未填写
+【常见问题】（建议修改）：
+- 主诉缺少时间（如只写"咽痛"，应写"咽痛3天"）
+- 主诉缺少主要症状
+- 现病史过于简单（少于20字）
+- 既往史空白
+- 体格检查缺失
+- 检查/用药与诊断无关
+- 病历格式不规范
 
-请输出简洁的JSON结果：
+请输出JSON格式的审核结果：
 {
-  "totalScore": 评分（满分100，减去扣分）,
+  "totalScore": 评分（100-错误扣分）,
   "errorCount": 错误总数,
-  "criticalErrors": [{"type": "关键错误/常见问题", "content": "具体问题描述（不要笼统，要指出具体哪里有问题）", "location": "字段名"}],
-  "suggestions": ["具体改进建议1（指出应该怎么改）", "具体改进建议2"],
-  "strengths": ["病历中做得好的地方"],
-  "summary": "一句话总结问题（不超过20字）",
-  "isQualified": true/false
+  "criticalErrors": [{"type": "关键错误/常见问题", "content": "具体问题描述", "location": "字段位置"}],
+  "suggestions": ["改进建议1", "改进建议2"],
+  "strengths": ["病历亮点"],
+  "summary": "整体评价（30字以内）",
+  "isQualified": true/false  // 是否合格（有无关键错误）
 }
 
-要求：
-1. errorCount = criticalErrors.length + suggestions.length - strengths.length（只统计问题和错误，不统计亮点）
-2. criticalErrors 最多3个，只写最重要的
-3. suggestions 最多3条，每条要具体可行
-4. strengths 最多2条
-5. 不要返回 scores 字段
-6. 只输出JSON，不要有其他文字`;
+只输出JSON，不要有其他文字。`;
 }
 
 export async function POST(request: Request) {
@@ -106,7 +101,6 @@ export async function POST(request: Request) {
       patientData,  // 患者病历数据
       weights,       // 自定义权重（可选）
       zlh,          // 病历号（用于保存历史）
-      forceRefresh = false,  // 是否强制重新评价
       model = SCORING_CONFIG.model  // 使用配置的模型
     } = body;
 
@@ -132,8 +126,8 @@ export async function POST(request: Request) {
     // 如果有 zlh，使用zlh+cacheKey作为复合key
     const storageKey = zlh ? `${zlh}_${cacheKey.slice(0, 20)}` : cacheKey;
     
-    // 如果已有评分且不是强制刷新，直接返回缓存结果
-    if (history[storageKey] && !forceRefresh) {
+    // 如果已有评分，直接返回缓存结果
+    if (history[storageKey]) {
       return NextResponse.json({
         success: true,
         data: {
