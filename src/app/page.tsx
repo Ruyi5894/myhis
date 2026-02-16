@@ -90,7 +90,7 @@ export default function Home() {
   const [selectedDept, setSelectedDept] = useState('');
   const [departments, setDepartments] = useState<{Ksdm: string; Ksmc: string}[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [doctors, setDoctors] = useState<{Ygdm: string; Ygxm: string}[]>([]);
+  const [doctors, setDoctors] = useState<{Ygdm: string; doctor_name: string}[]>([]);
   
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -380,7 +380,7 @@ export default function Home() {
                 <option value="">全部医生</option>
                 {doctors.map((doc) => (
                   <option key={doc.Ygdm} value={doc.Ygdm}>
-                    {doc.Ygxm || doc.Ygdm}
+                    {doc.doctor_name || doc.Ygdm}
                   </option>
                 ))}
               </select>
