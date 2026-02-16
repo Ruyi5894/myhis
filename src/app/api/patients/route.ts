@@ -39,13 +39,13 @@ export async function GET(request: Request) {
     const pool = await getPool();
     const offset = (page - 1) * pageSize;
     
-    // 排序字段映射
+    // 排序字段映射 - t 是外层查询别名
     const sortFieldMap: Record<string, string> = {
-      zdrq: 'zd.zdrq',
-      cfje: 'cfje',
-      doctor_name: 'doctor_name',
+      zdrq: 't.ryrq',
+      cfje: 't.cfje',
+      doctor_name: 't.doctor_name',
     };
-    const orderByField = sortFieldMap[sortField] || 'zd.zdrq';
+    const orderByField = sortFieldMap[sortField] || 't.ryrq';
     const orderByDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
     
     let dateCondition = '';
@@ -85,7 +85,10 @@ export async function GET(request: Request) {
       SELECT * FROM (
         SELECT 
           ROW_NUMBER() OVER (ORDER BY ${orderByField} ${orderByDirection}) AS RowNum,
-          zd.zlh,
+          t.*
+        FROM (
+          SELECT 
+            zd.zlh,
           zd.jbxxbh,
           ISNULL(p.Xm, '未知') AS xm,
           CASE ISNULL(p.Xb, 0) WHEN 0 THEN '女' WHEN 1 THEN '男' ELSE '未知' END AS xb_text,
@@ -151,6 +154,7 @@ export async function GET(request: Request) {
           AND zd.zhushu NOT LIKE '%继续用药%'
           AND zd.zhushu NOT LIKE '%按时服药%'
         )` : ''}
+      ) AS t
       ) AS MZPage
       WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
     `;

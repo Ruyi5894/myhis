@@ -64,6 +64,56 @@ export async function GET(
 
     const basic = basicResult.recordset[0];
     
+    // 处方列表
+    const prescriptionQuery = `
+      SELECT 
+        CFxh AS cfxh,
+        brkh,
+        cfysdm,
+        cfje,
+        cflx,
+        cfrq,
+        cfysksdm,
+        cfzxksdm,
+        sycfbz
+      FROM MZYSZ_CFK
+      WHERE brzlh = ${zlh}
+      ORDER BY cfrq DESC
+    `;
+    const prescriptionResult = await pool.request().query(prescriptionQuery);
+
+    // 处方明细
+    const prescriptionDetailQuery = `
+      SELECT 
+        m.cfxh,
+        m.cfmxxh,
+        m.cfxmdm,
+        CAST(x.Mzgg AS NVARCHAR(MAX)) AS Mzgg,
+        m.Jl,
+        m.sl,
+        m.ypyf,
+        m.ypsypldm,
+        m.ypyl,
+        ISNULL(m.cfxmmc, x.Mxxmmc) AS cfxmmc
+      FROM MZYSZ_CFMXK m
+      INNER JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)
+      WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${zlh})
+      ORDER BY m.cfmxxh DESC
+    `;
+    const prescriptionDetailResult = await pool.request().query(prescriptionDetailQuery);
+
+    // 费用汇总
+    const feeSummaryQuery = `
+      SELECT 
+        COUNT(*) AS cf_count,
+        ISNULL(SUM(cfje), 0) AS total_cfje,
+        ISNULL(SUM(g.Ghf), 0) AS total_ghf
+      FROM MZYSZ_CFK c
+      LEFT JOIN GH_MXXXK g ON c.brzlh = g.zlh
+      WHERE c.brzlh = ${zlh}
+    `;
+    const feeSummaryResult = await pool.request().query(feeSummaryQuery);
+    
     // 计算年龄
     let age = '-';
     if (basic.Csny) {
@@ -73,6 +123,8 @@ export async function GET(
         age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toString();
       }
     }
+
+    const feeSummary = feeSummaryResult.recordset[0];
 
     return NextResponse.json({
       success: true,
@@ -103,8 +155,15 @@ export async function GET(
           temperature: basic.Tw ? basic.Tw + '°C' : '-',
         },
         signature: {
-          doctor: `${basic.doctor_name || basic.zgxm || '-'} (${basic.Zgdm || '-'})`,
+          doctor: `${basic.doctor_name || '-'} (${basic.Zdys || '-'})`,
           signDate: basic.zdrq,
+        },
+        prescriptions: prescriptionResult.recordset,
+        prescriptionDetails: prescriptionDetailResult.recordset,
+        feeSummary: {
+          cfCount: feeSummary.cf_count || 0,
+          totalCfje: feeSummary.total_cfje || 0,
+          totalGhf: feeSummary.total_ghf || 0,
         },
       },
     });
