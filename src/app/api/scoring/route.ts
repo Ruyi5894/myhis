@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       patientData,  // 患者病历数据
       weights,       // 自定义权重（可选）
       zlh,          // 病历号（用于保存历史）
+      force = false,  // 强制重新评分
       model = SCORING_CONFIG.model  // 使用配置的模型
     } = body;
 
@@ -126,8 +127,8 @@ export async function POST(request: Request) {
     // 如果有 zlh，使用zlh+cacheKey作为复合key
     const storageKey = zlh ? `${zlh}_${cacheKey.slice(0, 20)}` : cacheKey;
     
-    // 如果已有评分，直接返回缓存结果
-    if (history[storageKey]) {
+    // 如果已有评分且不是强制重新评分，直接返回缓存结果
+    if (history[storageKey] && !force) {
       return NextResponse.json({
         success: true,
         data: {

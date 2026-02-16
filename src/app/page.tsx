@@ -194,7 +194,7 @@ export default function Home() {
   };
 
   // 评分函数
-  const handleScorePatient = async (patient: PatientDetail) => {
+  const handleScorePatient = async (patient: PatientDetail, force = false) => {
     setSelectedPatientForScoring(patient);
     setScoringResult(null);
     setScoringLoading(true);
@@ -219,6 +219,7 @@ export default function Home() {
           },
           weights: scoringWeights.map(c => `${c.name}（${c.weight}分）：${c.description}`),
           zlh: patient.basicInfo.cardNo?.slice(-8),  // 病历号后8位作为唯一标识
+          force: force,  // 是否强制重新评分
         }),
       });
       
@@ -947,6 +948,15 @@ export default function Home() {
                     <span className="ml-2 text-green-600 text-sm">✓ 已缓存</span>
                   )}
                 </p>
+                {scoringResult.cached && (
+                  <button 
+                    onClick={() => selectedPatientForScoring && handleScorePatient(selectedPatientForScoring, true)}
+                    disabled={scoringLoading}
+                    className="mt-2 px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                  >
+                    {scoringLoading ? '重新评分中...' : '重新评分'}
+                  </button>
+                )}
                 {scoringResult.errorCount !== undefined && (
                   <p className={`text-sm mt-1 ${scoringResult.errorCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                     发现 {scoringResult.errorCount} 个问题
