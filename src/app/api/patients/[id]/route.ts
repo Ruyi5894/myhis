@@ -21,82 +21,37 @@ async function getPool() {
   return pool;
 }
 
-// 获取门诊就诊详情 - 按卫健委规范组织病史信息
+// 获取门诊就诊详情
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const zlh = parseInt(id, 10);
   
-  // 验证 id 是否有效
-  if (!id || isNaN(parseInt(id, 10))) {
+  if (isNaN(zlh)) {
     return NextResponse.json({
       success: false,
-      error: '无效的病历号: ' + id,
-    }, { status: 400 });
+      error: '无效的病历号',
+    });
   }
-  
-  const zlh = parseInt(id, 10);
   
   try {
     const pool = await getPool();
     
-    // 检查记录是否存在
-    const checkQuery = `SELECT COUNT(*) as cnt FROM MZYSZ_YSZDK WHERE zlh = ${zlh}`;
-    const checkResult = await pool.request().query(checkQuery);
-    
-    if (checkResult.recordset[0].cnt === 0) {
-      return NextResponse.json({
-        success: false,
-        error: '未找到该就诊记录 (zlh: ' + zlh + ')',
-      });
-    }
-    
-    // 基本信息 + 病历记录 - 关联科室和医生表
-    const basicQuery = `
-      SELECT TOP 1 
-        y.zlh,
-        y.jbxxbh,
-        ISNULL(p.Xm, '未知') AS xm,
-        CASE ISNULL(p.Xb, 0) WHEN 0 THEN '女' WHEN 1 THEN '男' ELSE '未知' END AS xb_text,
-        p.Csny AS csny,
-        p.Sfz AS sfz,
-        p.Dhhm AS lxdh,
-        p.Jtdz AS dz,
-        p.Zy AS zy,
-        y.zdrq AS ryrq,
-        y.Zdmc AS ryzd,
-        y.Zddm AS zddm,
-        y.Zs AS zs,
-        y.xbs AS xbs,
-        y.Tj AS tjbg,
-        y.Bz AS clcs,
-        y.Mb AS mb,
-        y.Xt AS xt,
-        y.Tw AS tw,
-        -- 科室：ssy 是科室代码，关联 JB_KSBMK 获取科室名称
-        ISNULL(k.Ksmc, g.Ksdm) AS dept,
-        -- 医生：zys 是主诊医师代码，szy 是开方医师代码，关联 JB_YGDMK 获取姓名
-        ISNULL(y1.Ygxm, y.Zdys) AS zzys_name,
-        y.Zdys AS zzys_code,
-        ISNULL(y2.Ygxm, y.Szy) AS kzys_name,
-        y.Szy AS kzys_code,
-        g.Fymc AS fymc,
-        g.Ghf AS ghf
-      FROM MZYSZ_YSZDK y
-      LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
-      LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
-      -- 关联科室表
-      LEFT JOIN JB_KSBMK k ON y.ssy = k.Ksdm
-      -- 关联主诊医师表
-      LEFT JOIN JB_YGDMK y1 ON y.Zdys = y1.Ygdm
-      -- 关联开方医师表
-      LEFT JOIN JB_YGDMK y2 ON y.Szy = y2.Ygdm
-      WHERE y.zlh = ${zlh}
-      ORDER BY y.zdrq DESC
-    `;
-    
-    const basicResult = await pool.request().query(basicQuery);
+    // 基本信息
+    const basicResult = await pool.request()
+      .input('zlh', sql.Int, zlh)
+      .query(`
+        SELECT TOP 1 
+          y.zlh, y.jbxxbh, p.Xm, p.Xb, p.Csny, p.Sfz, p.Dhhm, p.Jtdz, p.Zy,
+          y.zdrq, y.Zdmc, y.Zddm, y.Zs, y.xbs, y.Tj, y.Bz, y.Mb, y.Xt, y.Tw,
+          y.ssy AS ksdm, y.Zdys, y.Szy
+        FROM MZYSZ_YSZDK y
+        LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
+        WHERE y.zlh = @zlh
+        ORDER BY y.zdrq DESC
+      `);
     
     if (basicResult.recordset.length === 0) {
       return NextResponse.json({
@@ -106,113 +61,49 @@ export async function GET(
     }
 
     const basic = basicResult.recordset[0];
-
-    // 处方列表
-    const prescriptionQuery = `
-      SELECT 
-        CFxh AS cfxh,
-        brkh,
-        cfysdm,
-        cfje,
-        cflx,
-        cfrq,
-        cfysksdm,
-        cfzxksdm,
-        sycfbz
-      FROM MZYSZ_CFK
-      WHERE brzlh = ${zlh}
-      ORDER BY cfrq DESC
-    `;
-    const prescriptionResult = await pool.request().query(prescriptionQuery);
-
-    // 处方明细
-    const prescriptionDetailQuery = `
-      SELECT 
-        m.cfxh,
-        m.cfmxxh,
-        m.cfxmdm,
-        CAST(x.Mzgg AS NVARCHAR(MAX)) AS Mzgg,
-        m.Jl,
-        m.sl,
-        m.ypyf,
-        m.ypsypldm,
-        m.ypyl,
-        ISNULL(m.cfxmmc, x.Mxxmmc) AS cfxmmc
-      FROM MZYSZ_CFMXK m
-      INNER JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)
-      WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${zlh})
-      ORDER BY m.cfmxxh DESC
-    `;
-    const prescriptionDetailResult = await pool.request().query(prescriptionDetailQuery);
-
-    // 费用汇总
-    const feeSummaryQuery = `
-      SELECT 
-        COUNT(*) AS cf_count,
-        ISNULL(SUM(cfje), 0) AS total_cfje,
-        ISNULL(SUM(g.Ghf), 0) AS total_ghf
-      FROM MZYSZ_CFK c
-      LEFT JOIN GH_MXXXK g ON c.brzlh = g.zlh
-      WHERE c.brzlh = ${zlh}
-    `;
-    const feeSummaryResult = await pool.request().query(feeSummaryQuery);
-
+    
     // 计算年龄
-    let nl = '-';
-    if (basic.csny) {
-      const birthDate = new Date(basic.csny);
+    let age = '-';
+    if (basic.Csny) {
+      const birthDate = new Date(basic.Csny);
       if (!isNaN(birthDate.getTime())) {
         const today = new Date();
-        nl = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toString();
+        age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000)).toString();
       }
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        // 门诊病历首页
         basicInfo: {
-          name: basic.xm?.trim(),
-          gender: basic.xb_text,
-          age: nl + '岁',
-          cardNo: basic.sfz?.trim() || '-',
-          phone: basic.lxdh?.trim() || '-',
-          address: basic.dz?.trim() || '-',
-          occupation: basic.zy?.trim() || '-',
-          visitDate: basic.ryrq,
-          dept: basic.dept || '-',
+          name: basic.Xm?.trim() || '未知',
+          gender: basic.Xb === 1 ? '男' : (basic.Xb === 0 ? '女' : '未知'),
+          age: age + '岁',
+          cardNo: basic.Sfz?.trim() || '-',
+          phone: basic.Dhhm?.trim() || '-',
+          address: basic.Jtdz?.trim() || '-',
+          occupation: basic.Zy?.trim() || '-',
+          visitDate: basic.zdrq,
+          dept: basic.ksdm || '-',
         },
-        // 病历记录
         medicalRecord: {
-          // 主诉 - 使用 zs 字段
-          chiefComplaint: basic.zs?.trim() || (basic.xbs?.trim() ? '（从现病史提取）' + basic.xbs?.trim()?.split('。')[0] + '。' : '-'),
-          // 现病史
+          chiefComplaint: basic.Zs?.trim() || (basic.xbs?.trim()?.split('。')[0] + '。' || '-'),
           presentIllness: basic.xbs?.trim() || '-',
-          // 既往史 - 数据库暂无此字段
           pastHistory: '-',
-          // 体格检查
-          physicalExam: basic.tjbg?.trim() || '-',
-          // 初步诊断
-          preliminaryDiagnosis: basic.ryzd?.trim() || '-',
-          diagnosisCode: basic.zddm?.trim() || '-',
-          // 处理措施
-          treatment: basic.clcs?.trim() || '-',
+          physicalExam: basic.Tj?.trim() || '-',
+          preliminaryDiagnosis: basic.Zdmc?.trim() || '-',
+          diagnosisCode: basic.Zddm?.trim() || '-',
+          treatment: basic.Bz?.trim() || '-',
         },
-        // 生命体征
         vitalSigns: {
-          bloodPressure: basic.xt || '-',
-          heartRate: basic.mb || '-',
-          temperature: basic.tw ? basic.tw + '°C' : '-',
+          bloodPressure: basic.Xt || '-',
+          heartRate: basic.Mb?.toString() || '-',
+          temperature: basic.Tw ? basic.Tw + '°C' : '-',
         },
-        // 医师签名
         signature: {
-          doctor: `${basic.kzys_name || '-'} (${basic.kzys_code || '-'})`,
-          signDate: basic.ryrq,
+          doctor: `${basic.Szy || '-'} (${basic.Zdys || '-'})`,
+          signDate: basic.zdrq,
         },
-        // 处方信息
-        prescriptions: prescriptionResult.recordset,
-        prescriptionDetails: prescriptionDetailResult.recordset,
-        feeSummary: feeSummaryResult.recordset[0],
       },
     });
     
