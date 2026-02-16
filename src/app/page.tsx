@@ -273,16 +273,29 @@ export default function Home() {
 
   // 计算用药天数
   const calculateDays = (item: any): string => {
-    const sl = item.sl || 0;
+    const sl = parseFloat(item.sl) || 0;
+    const ypyl = parseFloat(item.ypyl) || 0;
     const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
+    const mzgg = item.Mzgg || '';
     
-    if (!ypyf || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
-      return '-';  // 必要时等无法计算
+    // 如果无法计算
+    if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
+      return '-';
     }
     
-    // 解析用药频率
-    let timesPerDay = 1;  // 默认
-    if (ypyf.includes('QD') || ypyf.includes('QN') || ypyf === '1') {
+    // 解析每盒/瓶片数
+    let pillsPerBox = 1;
+    const boxMatch = mzgg.match(/(\d+)\s*片/);
+    if (boxMatch) {
+      pillsPerBox = parseInt(boxMatch[1], 10);
+    }
+    
+    // 计算总片数
+    const totalPills = sl * pillsPerBox;
+    
+    // 计算每日片数
+    let timesPerDay = 1;
+    if (ypyf.includes('QD') || ypyf === '1' || ypyf === 'QN') {
       timesPerDay = 1;
     } else if (ypyf.includes('BID') || ypyf === '2') {
       timesPerDay = 2;
@@ -292,9 +305,22 @@ export default function Home() {
       timesPerDay = 4;
     }
     
-    // 计算天数
-    const days = sl / timesPerDay;
-    return Math.round(days * 10) / 10 + '天';
+    // 每日剂量(mg) = 每日片数 * 每片剂量
+    const jl = parseFloat(item.Jl) || 0;
+    const dailyDoseMg = timesPerDay * jl;
+    
+    if (dailyDoseMg <= 0) {
+      return '-';
+    }
+    
+    // 可用天数 = 总mg / 每日mg
+    const totalMg = totalPills * jl;
+    const days = totalMg / dailyDoseMg;
+    
+    if (days < 1) {
+      return Math.round(days * 10) / 10 + '天';
+    }
+    return Math.round(days) + '天';
   };
 
   const setQuickDateRange = (range: string) => {
