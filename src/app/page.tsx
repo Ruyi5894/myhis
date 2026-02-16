@@ -272,7 +272,7 @@ export default function Home() {
   };
 
   // 计算用药天数
-  const calculateDays = (item: any): string => {
+  const calculateDays = (item: any): { days: string; detail: string } => {
     const sl = parseFloat(item.sl) || 0;
     const ypyl = parseFloat(item.ypyl) || 0;
     const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
@@ -280,7 +280,7 @@ export default function Home() {
     
     // 如果无法计算
     if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
-      return '-';
+      return { days: '-', detail: '无法计算：必要时/立即用药' };
     }
     
     // 解析每盒/瓶片数
@@ -295,14 +295,19 @@ export default function Home() {
     
     // 计算每日片数
     let timesPerDay = 1;
+    let timesText = '每日1次';
     if (ypyf.includes('QD') || ypyf === '1' || ypyf === 'QN') {
       timesPerDay = 1;
+      timesText = '每日1次(QD)';
     } else if (ypyf.includes('BID') || ypyf === '2') {
       timesPerDay = 2;
+      timesText = '每日2次(BID)';
     } else if (ypyf.includes('TID') || ypyf === '3') {
       timesPerDay = 3;
+      timesText = '每日3次(TID)';
     } else if (ypyf.includes('QID') || ypyf === '4') {
       timesPerDay = 4;
+      timesText = '每日4次(QID)';
     }
     
     // 每日剂量(mg) = 每日片数 * 每片剂量
@@ -310,17 +315,22 @@ export default function Home() {
     const dailyDoseMg = timesPerDay * jl;
     
     if (dailyDoseMg <= 0) {
-      return '-';
+      return { days: '-', detail: '无法计算：剂量数据异常' };
     }
     
     // 可用天数 = 总mg / 每日mg
     const totalMg = totalPills * jl;
     const days = totalMg / dailyDoseMg;
     
-    if (days < 1) {
-      return Math.round(days * 10) / 10 + '天';
-    }
-    return Math.round(days) + '天';
+    const daysStr = days < 1 ? Math.round(days * 10) / 10 + '天' : Math.round(days) + '天';
+    
+    const detail = `计算步骤：
+1. 数量 × 每盒片数 = ${sl} × ${pillsPerBox} = ${totalPills}片（总片数）
+2. ${totalPills}片 × ${jl}mg = ${totalMg}mg（总剂量）
+3. ${timesText} × ${jl}mg = ${dailyDoseMg}mg（每日剂量）
+4. ${totalMg}mg ÷ ${dailyDoseMg}mg = ${daysStr}`;
+    
+    return { days: daysStr, detail };
   };
 
   const setQuickDateRange = (range: string) => {
@@ -946,8 +956,20 @@ export default function Home() {
                                 <td className="px-4 py-2 text-center text-gray-600">
                                   {item.ypyl ? item.ypyl + 'mg' : '-'}
                                 </td>
-                                <td className="px-4 py-2 text-center text-blue-600 font-medium">
-                                  {calculateDays(item)}
+                                <td className="px-4 py-2 text-center">
+                                  {(() => {
+                                    const { days, detail } = calculateDays(item);
+                                    return days === '-' ? (
+                                      <span className="text-gray-400">{days}</span>
+                                    ) : (
+                                      <span 
+                                        className="text-blue-600 font-medium cursor-help border-b border-dashed border-blue-400"
+                                        title={detail}
+                                      >
+                                        {days}
+                                      </span>
+                                    );
+                                  })()}
                                 </td>
                               </tr>
                             ))}
