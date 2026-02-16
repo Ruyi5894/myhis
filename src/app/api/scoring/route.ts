@@ -48,9 +48,9 @@ function generateCacheKey(patientData: any, weights?: any[]): string {
   return Buffer.from(JSON.stringify(keyData)).toString('base64');
 }
 
-// 生成固定结果的提示词（更严格的评分规则）
+// 生成固定结果的提示词（重点识别错误）
 function generateStrictPrompt(patientData: any, categoriesText: string): string {
-  return `你是一位严格按标准评分的医学专家。请根据以下病历信息，严格按照评分标准打分。
+  return `你是一位资深医学专家，负责审核门诊病历，找出其中的错误、遗漏和不合理之处。
 
 病历信息：
 - 患者：${patientData.name || '未知'}，${patientData.gender || '未知'}，${patientData.age || '未知'}岁
@@ -63,33 +63,32 @@ function generateStrictPrompt(patientData: any, categoriesText: string): string 
 - 初步诊断：${patientData.diagnosis || '未记录'}
 - 处理措施：${patientData.treatment || '未记录'}
 
-评分标准（满分100分）：
-${categoriesText}
+请重点检查以下错误类型：
 
-评分规则（合理评分）：
-1. 主诉完整性（10分）：有时间和主要症状得满分，时间精确+症状详细加1-2分bonus，时间/症状缺失酌情扣分
-2. 现病史详细度（20分）：超过100字且有鉴别诊断思路满分，简短但完整得15-18分，过短酌情扣分
-3. 既往史完整性（10分）：有记录得满分，空白才扣分
-4. 体格检查规范性（15分）：有记录得满分，空白扣分
-5. 诊断准确性（20分）：诊断明确得满分，不明确酌情扣分
-6. 处理措施合理性（15分）：有处理措施得满分
-7. 病历书写规范（10分）：格式规范得满分，小瑕疵不扣分
+【关键错误】（必须修改）：
+- 诊断与症状不符
+- 处理措施与诊断无关
+- 用药剂量明显错误
+- 漏写必要信息（如性别、年龄）
 
-优秀病历评价示例（应得85-95分）：
-- 主诉完整，时间+症状+特点齐全
-- 现病史详细，有鉴别诊断思路
-- 各项记录完整
-- 处理措施合理
+【常见问题】（建议修改）：
+- 主诉缺少时间（如只写"咽痛"，应写"咽痛3天"）
+- 主诉缺少主要症状
+- 现病史过于简单（少于20字）
+- 既往史空白
+- 体格检查缺失
+- 检查/用药与诊断无关
+- 病历格式不规范
 
-请输出合理的JSON评分结果：
+请输出JSON格式的审核结果：
 {
-  "totalScore": 总分（合理分数）,
-  "scores": [
-    {"category": "评分项名称", "score": 得分, "maxScore": 满分, "comment": "评价理由"}
-  ],
-  "strengths": ["亮点1", "亮点2"],
-  "improvements": ["改进建议"],
-  "summary": "整体评价（30字以内）"
+  "totalScore": 评分（100-错误扣分）,
+  "errorCount": 错误总数,
+  "criticalErrors": [{"type": "关键错误/常见问题", "content": "具体问题描述", "location": "字段位置"}],
+  "suggestions": ["改进建议1", "改进建议2"],
+  "strengths": ["病历亮点"],
+  "summary": "整体评价（30字以内）",
+  "isQualified": true/false  // 是否合格（有无关键错误）
 }
 
 只输出JSON，不要有其他文字。`;

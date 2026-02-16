@@ -856,7 +856,7 @@ export default function Home() {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               {/* 总分 */}
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full shadow-lg">
+                <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full shadow-lg ${scoringResult.isQualified ? 'bg-gradient-to-br from-green-400 to-green-500' : 'bg-gradient-to-br from-red-400 to-orange-500'}`}>
                   <span className="text-4xl font-bold text-white">{scoringResult.totalScore || 0}</span>
                   <span className="text-lg text-white/80 ml-1">分</span>
                 </div>
@@ -866,31 +866,27 @@ export default function Home() {
                     <span className="ml-2 text-green-600 text-sm">✓ 已缓存</span>
                   )}
                 </p>
+                {scoringResult.errorCount !== undefined && (
+                  <p className={`text-sm mt-1 ${scoringResult.errorCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    发现 {scoringResult.errorCount} 个问题
+                  </p>
+                )}
               </div>
 
-              {/* 各项评分 */}
-              {scoringResult.scores && scoringResult.scores.length > 0 && (
+              {/* 错误列表 */}
+              {scoringResult.criticalErrors && scoringResult.criticalErrors.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">各项评分</h3>
+                  <h3 className="font-semibold text-red-700 mb-3">⚠️ 发现的问题</h3>
                   <div className="space-y-3">
-                    {scoringResult.scores.map((item: any, idx: number) => (
-                      <div key={idx} className="bg-gray-50 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-gray-900">{item.category}</span>
-                          <span className="text-sm">
-                            <span className="font-semibold text-yellow-600">{item.score}</span>
-                            <span className="text-gray-400">/{item.maxScore}</span>
+                    {scoringResult.criticalErrors.map((err: any, idx: number) => (
+                      <div key={idx} className={`rounded-lg p-4 ${err.type === '关键错误' ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                        <div className="flex items-start gap-2">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${err.type === '关键错误' ? 'bg-red-200 text-red-700' : 'bg-yellow-200 text-yellow-700'}`}>
+                            {err.type}
                           </span>
+                          <span className="text-sm text-gray-600">{err.location}</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-yellow-500 h-2 rounded-full transition-all"
-                            style={{ width: `${(item.score / item.maxScore) * 100}%` }}
-                          ></div>
-                        </div>
-                        {item.comment && (
-                          <p className="text-sm text-gray-600 mt-2">{item.comment}</p>
-                        )}
+                        <p className="text-sm text-gray-800 mt-2">{err.content}</p>
                       </div>
                     ))}
                   </div>
@@ -910,11 +906,11 @@ export default function Home() {
               )}
 
               {/* 改进建议 */}
-              {scoringResult.improvements && scoringResult.improvements.length > 0 && (
+              {scoringResult.suggestions && scoringResult.suggestions.length > 0 && (
                 <div className="mb-6">
                   <h3 className="font-semibold text-blue-700 mb-2">→ 改进建议</h3>
                   <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                    {scoringResult.improvements.map((item: string, idx: number) => (
+                    {scoringResult.suggestions.map((item: string, idx: number) => (
                       <li key={idx}>{item}</li>
                     ))}
                   </ul>
