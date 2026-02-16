@@ -96,7 +96,7 @@ export async function GET(request: Request) {
           p.Sfz AS sfz,
           p.Dhhm AS lxdh,
           p.Jtdz AS dz,
-          zd.zdrq AS ryrq,
+          CONVERT(VARCHAR(19), zd.zdrq, 120) AS ryrq,
           zd.ryzd,
           zd.zddm,
           zd.zhushu,

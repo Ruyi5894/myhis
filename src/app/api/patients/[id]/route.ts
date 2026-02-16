@@ -39,18 +39,22 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 基本信息 - 关联医生表获取医生姓名
+    // 基本信息 - 关联医生表和科室表获取医生和科室姓名
     const basicResult = await pool.request()
       .input('zlh', sql.Int, zlh)
       .query(`
         SELECT TOP 1 
           y.zlh, y.jbxxbh, p.Xm, p.Xb, p.Csny, p.Sfz, p.Dhhm, p.Jtdz, p.Zy,
-          y.zdrq, y.Zdmc, y.Zddm, y.Zs, y.xbs, y.Tj, y.Bz, y.Mb, y.Xt, y.Tw,
-          y.ssy AS ksdm, y.Zdys, y.Szy,
+          CONVERT(VARCHAR(19), y.zdrq, 120) AS zdrq, y.Zdmc, y.Zddm, y.Zs, y.xbs, y.Tj, y.Bz, y.Mb, y.Xt, y.Tw,
+          g.Ksdm AS ksdm_code, 
+          k.Ksmc AS ksdm,
+          y.Zdys, y.Szy,
           doc.zgxm AS doctor_name
         FROM MZYSZ_YSZDK y
         LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
         LEFT JOIN YBsjcj_JB_ZGBMK doc ON y.Zdys = doc.zgdm
+        LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
+        LEFT JOIN JB_KSBMK k ON g.Ksdm = k.Ksdm
         WHERE y.zlh = @zlh
         ORDER BY y.zdrq DESC
       `);
@@ -72,7 +76,7 @@ export async function GET(
         cfysdm,
         cfje,
         cflx,
-        cfrq,
+        CONVERT(VARCHAR(19), cfrq, 120) AS cfrq,
         cfysksdm,
         cfzxksdm,
         sycfbz
