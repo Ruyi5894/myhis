@@ -5,7 +5,7 @@ import {
   Calendar, Search, RefreshCw, Hospital,
   ChevronLeft, ChevronRight, Filter, X,
   User, Stethoscope, Pill, DollarSign,
-  StickyNote, Activity, ClipboardList, Star, Settings, AlertTriangle
+  StickyNote, Activity, ClipboardList, Star, Settings, AlertTriangle, Sparkles
 } from 'lucide-react';
 import SCORING_CONFIG from '@/config/scoring';
 
@@ -115,6 +115,8 @@ export default function Home() {
   const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
   const [medicationAnalysis, setMedicationAnalysis] = useState<any>(null);
   const [medicationAnalysisLoading, setMedicationAnalysisLoading] = useState(false);
+  const [aiMedicationAnalysis, setAiMedicationAnalysis] = useState<any>(null);
+  const [aiMedicationAnalysisLoading, setAiMedicationAnalysisLoading] = useState(false);
 
   // 获取科室列表 - 从搜索结果中动态获取
   useEffect(() => {
@@ -171,6 +173,7 @@ export default function Home() {
   const fetchMedicationAnalysis = async (zlh: number) => {
     setMedicationAnalysisLoading(true);
     setMedicationAnalysis(null);
+    setAiMedicationAnalysis(null);
     try {
       const res = await fetch(`/api/patients/${zlh}/medicationAnalysis`);
       const data = await res.json();
@@ -183,6 +186,24 @@ export default function Home() {
       console.error('获取用药分析失败:', error);
     }
     setMedicationAnalysisLoading(false);
+  };
+
+  // AI用药分析
+  const fetchAIMedicationAnalysis = async (zlh: number) => {
+    setAiMedicationAnalysisLoading(true);
+    setAiMedicationAnalysis(null);
+    try {
+      const res = await fetch(`/api/patients/${zlh}/medicationAnalysis/ai`);
+      const data = await res.json();
+      if (data.success) {
+        setAiMedicationAnalysis(data.data);
+      } else {
+        console.error('AI用药分析失败:', data.error);
+      }
+    } catch (error) {
+      console.error('获取AI用药分析失败:', error);
+    }
+    setAiMedicationAnalysisLoading(false);
   };
 
   // 排序处理
@@ -1123,6 +1144,41 @@ export default function Home() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* AI用药分析按钮 */}
+          {medicationAnalysis && !aiMedicationAnalysis && !aiMedicationAnalysisLoading && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => {
+                  const zlh = selectedPatient.basicInfo?.zlh || selectedPatient.zlh;
+                  if (zlh) fetchAIMedicationAnalysis(zlh);
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-lg"
+              >
+                <Sparkles className="w-5 h-5" />
+                AI智能分析用药合理性
+              </button>
+            </div>
+          )}
+
+          {aiMedicationAnalysisLoading && (
+            <div className="mt-4 flex items-center justify-center py-6 bg-purple-50 rounded-lg">
+              <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-3 text-purple-700">AI正在分析用药情况...</span>
+            </div>
+          )}
+
+          {aiMedicationAnalysis && !aiMedicationAnalysisLoading && (
+            <div className="mt-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-100">
+              <h4 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI用药分析结果
+              </h4>
+              <div className="bg-white rounded-lg p-4 shadow-sm text-sm text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto">
+                {aiMedicationAnalysis.analysis}
               </div>
             </div>
           )}
