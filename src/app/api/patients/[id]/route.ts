@@ -31,7 +31,7 @@ export async function GET(
   try {
     const pool = await getPool();
     
-    // 基本信息 + 病历记录
+    // 基本信息 + 病历记录 - 关联科室和医生表
     const basicQuery = `
       SELECT TOP 1 
         y.zlh,
@@ -42,24 +42,35 @@ export async function GET(
         p.Sfz AS sfz,
         p.Dhhm AS lxdh,
         p.Jtdz AS dz,
-        p.Zy AS zy,                     -- 职业
+        p.Zy AS zy,
         y.zdrq AS ryrq,
-        y.Zdmc AS ryzd,                 -- 初步诊断（诊断名称）
-        y.Zddm AS zddm,                -- 诊断代码
-        y.Zs AS zs,                    -- 主诉
-        y.xbs AS xbs,                  -- 现病史
-        y.Tj AS tjbg,                  -- 体格检查
-        y.Bz AS clcs,                  -- 处理措施/备注
-        y.Mb AS mb,                    -- 脉搏
-        y.Xt AS xt,                    -- 血压/体征
-        y.Tw AS tw,                    -- 体温
-        y.Zdys AS zzys,                -- 主诊医师
-        y.Szy AS kzys,                 -- 开方医师
+        y.Zdmc AS ryzd,
+        y.Zddm AS zddm,
+        y.Zs AS zs,
+        y.xbs AS xbs,
+        y.Tj AS tjbg,
+        y.Bz AS clcs,
+        y.Mb AS mb,
+        y.Xt AS xt,
+        y.Tw AS tw,
+        -- 科室：ssy 是科室代码，关联 JB_KSBMK 获取科室名称
+        ISNULL(k.Ksmc, g.Ksdm) AS dept,
+        -- 医生：zys 是主诊医师代码，szy 是开方医师代码，关联 JB_YGDMK 获取姓名
+        ISNULL(y1.Ygxm, y.Zdys) AS zzys_name,
+        y.Zdys AS zzys_code,
+        ISNULL(y2.Ygxm, y.Szy) AS kzys_name,
+        y.Szy AS kzys_code,
         g.Fymc AS fymc,
         g.Ghf AS ghf
       FROM MZYSZ_YSZDK y
       LEFT JOIN GH_MXXXK g ON y.zlh = g.zlh
       LEFT JOIN XT_BRJBXXK p ON y.jbxxbh = p.Jbxxbh AND y.jbxxbh > 0
+      -- 关联科室表
+      LEFT JOIN JB_KSBMK k ON y.ssy = k.Ksdm
+      -- 关联主诊医师表
+      LEFT JOIN JB_YGDMK y1 ON y.Zdys = y1.Ygdm
+      -- 关联开方医师表
+      LEFT JOIN JB_YGDMK y2 ON y.Szy = y2.Ygdm
       WHERE y.zlh = ${id}
       ORDER BY y.zdrq DESC
     `;
@@ -148,7 +159,7 @@ export async function GET(
           address: basic.dz?.trim() || '-',
           occupation: basic.zy?.trim() || '-',
           visitDate: basic.ryrq,
-          dept: basic.ssy || '-',
+          dept: basic.dept || '-',
         },
         // 病历记录
         medicalRecord: {
@@ -174,7 +185,7 @@ export async function GET(
         },
         // 医师签名
         signature: {
-          doctor: basic.kzys?.toString().trim() || '-',
+          doctor: `${basic.kzys_name || '-'} (${basic.kzys_code || '-'})`,
           signDate: basic.ryrq,
         },
         // 处方信息
