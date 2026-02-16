@@ -173,11 +173,11 @@ export async function GET(request: Request) {
     const countResult = await pool.request().query(countQuery);
     const total = countResult.recordset[0].cnt;
 
-    // 获取当前搜索结果中的科室列表
+    // 获取当前搜索结果中的科室列表 - 与患者列表保持一致
     const deptQuery = `
-      SELECT DISTINCT zd.ssy AS Ksdm, k.Ksmc
+      SELECT DISTINCT g.Ksdm, k.Ksmc
       FROM (
-        SELECT y.zlh, y.ssy
+        SELECT y.zlh
         FROM MZYSZ_YSZDK y
         WHERE 1=1 ${dateCondition}
         ${keywordCondition.replace(/zd\./g, 'y.')}
@@ -190,9 +190,10 @@ export async function GET(request: Request) {
           AND y.xbs NOT LIKE '%维持原方案%' AND y.xbs NOT LIKE '%继续服药%'
           AND y.xbs NOT LIKE '%继续用药%' AND y.xbs NOT LIKE '%按时服药%'
         )` : ''}
-      ) zd
-      LEFT JOIN JB_KSBMK k ON zd.ssy = k.Ksdm
-      WHERE zd.ssy IS NOT NULL AND zd.ssy != '' AND zd.ssy != '1000'
+      ) y
+      INNER JOIN GH_MXXXK g ON y.zlh = g.zlh
+      LEFT JOIN JB_KSBMK k ON g.Ksdm = k.Ksdm
+      WHERE g.Ksdm IS NOT NULL AND g.Ksdm != '' AND g.Ksdm != '1000'
       ORDER BY k.Ksmc
     `;
     const deptResult = await pool.request().query(deptQuery);

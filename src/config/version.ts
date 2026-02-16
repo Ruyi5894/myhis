@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.12',
+  current: '1.7.13',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -38,6 +38,7 @@ export const VERSION = {
     { version: '1.7.10', date: '2026-02-16', content: '修复：只显示有病史的科室；修复详情页无法打开的问题（zlh类型转换）' },
     { version: '1.7.11', date: '2026-02-16', content: '简化详情页代码：使用参数化查询确保zlh类型正确' },
     { version: '1.7.12', date: '2026-02-16', content: '科室筛选基于搜索结果动态生成，搜索结果有哪些科室就显示哪些科室' },
+    { version: '1.7.13', date: '2026-02-16', content: '修复：科室筛选使用与患者列表相同的关联方式，显示科室名称而非代码' },
   ],
 };
 
