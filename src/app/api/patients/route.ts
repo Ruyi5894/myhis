@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   const startDate = searchParams.get('startDate') || '';
   const endDate = searchParams.get('endDate') || '';
   const excludeSimple = searchParams.get('excludeSimple') === 'true';
+  const dept = searchParams.get('dept') || '';  // 科室筛选
 
   try {
     const pool = await getPool();
@@ -53,6 +54,12 @@ export async function GET(request: Request) {
         zd.zhushu LIKE '%${keyword}%' OR 
         zd.zlh = '${keyword}'
       )`;
+    }
+
+    // 科室筛选条件
+    let deptCondition = '';
+    if (dept) {
+      deptCondition = ` AND zd.Ksdm = '${dept}'`;
     }
 
     // 按zlh去重，获取主要诊断名称，可排除简易门诊
@@ -103,7 +110,7 @@ export async function GET(request: Request) {
         ) zd
         LEFT JOIN GH_MXXXK g ON zd.zlh = g.zlh
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
-        WHERE 1=1 ${keywordCondition}
+        WHERE 1=1 ${keywordCondition}${deptCondition}
         ${excludeSimple ? ` AND (
           zd.zhushu NOT LIKE '%复诊%' 
           AND zd.zhushu NOT LIKE '%配药%' 

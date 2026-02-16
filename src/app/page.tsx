@@ -86,6 +86,8 @@ export default function Home() {
   const [startDate, setStartDate] = useState(firstDayOfMonth.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   const [excludeSimple, setExcludeSimple] = useState(false);
+  const [selectedDept, setSelectedDept] = useState('');
+  const [departments, setDepartments] = useState<{Ksdm: string; Ksmc: string}[]>([]);
   
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -103,9 +105,26 @@ export default function Home() {
   const [scoringLoading, setScoringLoading] = useState(false);
   const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
 
+  // 获取科室列表
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('/api/patients/departments');
+      const data = await res.json();
+      if (data.success) {
+        setDepartments(data.data);
+      }
+    } catch (error) {
+      console.error('获取科室列表失败:', error);
+    }
+  };
+
   useEffect(() => {
     fetchPatients();
-  }, [startDate, endDate, page, excludeSimple]);
+  }, [startDate, endDate, page, excludeSimple, selectedDept]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -117,6 +136,7 @@ export default function Home() {
         page: page.toString(),
         pageSize: pageSize.toString(),
         excludeSimple: excludeSimple.toString(),
+        dept: selectedDept,
       });
       const res = await fetch(`/api/patients?${params}`);
       const data = await res.json();
@@ -335,6 +355,21 @@ export default function Home() {
                 onChange={(e) => setEndDate(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">科室：</label>
+              <select
+                value={selectedDept}
+                onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[120px]"
+              >
+                <option value="">全部科室</option>
+                {departments.map((dept) => (
+                  <option key={dept.Ksdm} value={dept.Ksdm}>
+                    {dept.Ksmc || dept.Ksdm}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex items-center gap-2 ml-4">
               <label className="flex items-center gap-2 cursor-pointer">
