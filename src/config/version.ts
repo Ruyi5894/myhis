@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.9',
+  current: '1.7.10',
   name: '卫健委规范版',
   buildDate: '2026-02-16',
   author: 'Ruyi',
@@ -35,6 +35,7 @@ export const VERSION = {
     { version: '1.7.7', date: '2026-02-16', content: '回滚稳定版：恢复搜索功能正常' },
     { version: '1.7.8', date: '2026-02-16', content: '修复：就诊科室关联JB_KSBMK显示科室名称，医生签名显示姓名和工号' },
     { version: '1.7.9', date: '2026-02-16', content: '新增：科室筛选功能，可按科室筛选病历记录' },
+    { version: '1.7.10', date: '2026-02-16', content: '修复：只显示有病史的科室；修复详情页无法打开的问题（zlh类型转换）' },
   ],
 };
 

@@ -28,8 +28,29 @@ export async function GET(
 ) {
   const { id } = await params;
   
+  // 验证 id 是否有效
+  if (!id || isNaN(parseInt(id, 10))) {
+    return NextResponse.json({
+      success: false,
+      error: '无效的病历号: ' + id,
+    }, { status: 400 });
+  }
+  
+  const zlh = parseInt(id, 10);
+  
   try {
     const pool = await getPool();
+    
+    // 检查记录是否存在
+    const checkQuery = `SELECT COUNT(*) as cnt FROM MZYSZ_YSZDK WHERE zlh = ${zlh}`;
+    const checkResult = await pool.request().query(checkQuery);
+    
+    if (checkResult.recordset[0].cnt === 0) {
+      return NextResponse.json({
+        success: false,
+        error: '未找到该就诊记录 (zlh: ' + zlh + ')',
+      });
+    }
     
     // 基本信息 + 病历记录 - 关联科室和医生表
     const basicQuery = `
@@ -71,7 +92,7 @@ export async function GET(
       LEFT JOIN JB_YGDMK y1 ON y.Zdys = y1.Ygdm
       -- 关联开方医师表
       LEFT JOIN JB_YGDMK y2 ON y.Szy = y2.Ygdm
-      WHERE y.zlh = ${id}
+      WHERE y.zlh = ${zlh}
       ORDER BY y.zdrq DESC
     `;
     
@@ -80,7 +101,7 @@ export async function GET(
     if (basicResult.recordset.length === 0) {
       return NextResponse.json({
         success: false,
-        error: '未找到该就诊记录',
+        error: '未找到该就诊记录 (zlh: ' + zlh + ')',
       });
     }
 
@@ -99,7 +120,7 @@ export async function GET(
         cfzxksdm,
         sycfbz
       FROM MZYSZ_CFK
-      WHERE brzlh = ${id}
+      WHERE brzlh = ${zlh}
       ORDER BY cfrq DESC
     `;
     const prescriptionResult = await pool.request().query(prescriptionQuery);
@@ -119,7 +140,7 @@ export async function GET(
         ISNULL(m.cfxmmc, x.Mxxmmc) AS cfxmmc
       FROM MZYSZ_CFMXK m
       INNER JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)
-      WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${id})
+      WHERE m.cfxh IN (SELECT CFxh FROM MZYSZ_CFK WHERE brzlh = ${zlh})
       ORDER BY m.cfmxxh DESC
     `;
     const prescriptionDetailResult = await pool.request().query(prescriptionDetailQuery);
@@ -132,7 +153,7 @@ export async function GET(
         ISNULL(SUM(g.Ghf), 0) AS total_ghf
       FROM MZYSZ_CFK c
       LEFT JOIN GH_MXXXK g ON c.brzlh = g.zlh
-      WHERE c.brzlh = ${id}
+      WHERE c.brzlh = ${zlh}
     `;
     const feeSummaryResult = await pool.request().query(feeSummaryQuery);
 

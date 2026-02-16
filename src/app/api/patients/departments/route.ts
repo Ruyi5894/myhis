@@ -21,16 +21,19 @@ async function getPool() {
   return pool;
 }
 
-// 获取科室列表
+// 获取有病史记录的科室列表
 export async function GET() {
   try {
     const pool = await getPool();
     
+    // 只返回有病历记录的科室
     const query = `
-      SELECT Ksdm, Ksmc 
-      FROM JB_KSBMK 
-      WHERE Ksdm IS NOT NULL AND Ksdm != ''
-      ORDER BY Ksdm
+      SELECT DISTINCT k.Ksdm, k.Ksmc
+      FROM JB_KSBMK k
+      INNER JOIN GH_MXXXK g ON k.Ksdm = g.Ksdm
+      INNER JOIN MZYSZ_YSZDK y ON g.zlh = y.zlh
+      WHERE k.Ksdm IS NOT NULL AND k.Ksdm != '' AND k.Ksdm != '1000'
+      ORDER BY k.Ksmc
     `;
     
     const result = await pool.request().query(query);
