@@ -156,7 +156,7 @@ export default function Home() {
   };
 
   // 评分函数
-  const handleScorePatient = async (patient: PatientDetail) => {
+  const handleScorePatient = async (patient: PatientDetail, forceRefresh: boolean = false) => {
     setSelectedPatientForScoring(patient);
     setScoringResult(null);
     setScoringLoading(true);
@@ -180,7 +180,8 @@ export default function Home() {
             treatment: patient.medicalRecord.treatment,
           },
           weights: scoringWeights.map(c => `${c.name}（${c.weight}分）：${c.description}`),
-          zlh: patient.basicInfo.cardNo?.slice(-8),  // 病历号后8位作为唯一标识
+          zlh: patient.basicInfo.cardNo?.slice(-8),
+          forceRefresh: forceRefresh,  // 强制重新评价
         }),
       });
       
@@ -924,6 +925,25 @@ export default function Home() {
                   <p className="text-sm text-gray-700">{scoringResult.summary}</p>
                 </div>
               )}
+
+              {/* 按钮区域 */}
+              <div className="flex gap-3 mt-6">
+                {scoringResult.cached && (
+                  <button
+                    onClick={() => selectedPatientForScoring && handleScorePatient(selectedPatientForScoring, true)}
+                    className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    重新评价
+                  </button>
+                )}
+                <button
+                  onClick={() => setScoringResult(null)}
+                  className="flex-1 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
             </div>
           </div>
         </div>
