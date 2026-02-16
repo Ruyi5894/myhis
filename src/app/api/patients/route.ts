@@ -89,7 +89,7 @@ export async function GET(request: Request) {
             MAX(y.jbxxbh) AS jbxxbh,
             MAX(g.Ksdm) AS Ksdm,
             MAX(k.Ksmc) AS Ksmc,
-            STRING_AGG(CONVERT(VARCHAR(500), ISNULL(d.zdmc, '')), '; ') AS ryzd,
+            ISNULL(STRING_AGG(CONVERT(VARCHAR(500), ISNULL(d.zdmc, y.Zdmc)), '') AS ryzd,
             STRING_AGG(CONVERT(VARCHAR(200), ISNULL(y.Zddm, '')), '; ') AS zddm,
             MAX(CONVERT(VARCHAR(500), y.xbs)) AS zhushu,
             MAX(y.ssy) AS ssy,
@@ -105,23 +105,23 @@ export async function GET(request: Request) {
         LEFT JOIN XT_BRJBXXK p ON zd.jbxxbh = p.Jbxxbh AND zd.jbxxbh > 0
         WHERE 1=1 ${keywordCondition}
         ${excludeSimple ? ` AND (
-          zd.zhushu NOT LIKE '%复诊%' 
-          AND zd.zhushu NOT LIKE '%配药%' 
-          AND zd.zhushu NOT LIKE '%开药%'
-          AND zd.zhushu NOT LIKE '%随访%'
-          AND zd.zhushu NOT LIKE '%随诊%'
-          AND zd.zhushu NOT LIKE '%续方%'
-          AND zd.zhushu NOT LIKE '%续开%'
-          AND zd.zhushu NOT LIKE '%拿药%'
-          AND zd.zhushu NOT LIKE '%取药%'
-          AND zd.zhushu NOT LIKE '%常规复查%'
-          AND zd.zhushu NOT LIKE '%复查%'
-          AND zd.zhushu NOT LIKE '%目前病情稳定%'
-          AND zd.zhushu NOT LIKE '%维持原治疗%'
-          AND zd.zhushu NOT LIKE '%维持原方案%'
-          AND zd.zhushu NOT LIKE '%继续服药%'
-          AND zd.zhushu NOT LIKE '%继续用药%'
-          AND zd.zhushu NOT LIKE '%按时服药%'
+          y.xbs NOT LIKE '%复诊%' 
+          AND y.xbs NOT LIKE '%配药%' 
+          AND y.xbs NOT LIKE '%开药%'
+          AND y.xbs NOT LIKE '%随访%'
+          AND y.xbs NOT LIKE '%随诊%'
+          AND y.xbs NOT LIKE '%续方%'
+          AND y.xbs NOT LIKE '%续开%'
+          AND y.xbs NOT LIKE '%拿药%'
+          AND y.xbs NOT LIKE '%取药%'
+          AND y.xbs NOT LIKE '%常规复查%'
+          AND y.xbs NOT LIKE '%复查%'
+          AND y.xbs NOT LIKE '%目前病情稳定%'
+          AND y.xbs NOT LIKE '%维持原治疗%'
+          AND y.xbs NOT LIKE '%维持原方案%'
+          AND y.xbs NOT LIKE '%继续服药%'
+          AND y.xbs NOT LIKE '%继续用药%'
+          AND y.xbs NOT LIKE '%按时服药%'
         )` : ''}
       ) AS MZPage
       WHERE RowNum BETWEEN ${offset + 1} AND ${offset + pageSize}
