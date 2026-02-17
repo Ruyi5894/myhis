@@ -370,18 +370,14 @@ export default function Home() {
     setAiCalculatingDays(prev => ({ ...prev, [key]: false }));
   };
 
-  // 计算用药天数 - 使用数据库字段计算
+  // 计算用药天数 - 使用药典默认值
   const calculateDays = (item: any, aiResult?: any): { days: string; detail: string } => {
     const sl = parseFloat(item.sl) || 0;  // 数量
-    const ypyl = parseFloat(item.ypyl) || 0;  // 每日用量
+    let ypyl = parseFloat(item.ypyl) || 0;  // 每日用量
     const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
     const mzgg = item.Mzgg || '';  // 规格
-    const ypyldw = item.ypyldw?.trim() || '';  // 用量单位
+    let ypyldw = item.ypyldw?.trim() || '';  // 用量单位
     const jl = parseFloat(item.Jl) || 0;  // 每粒剂量(mg)
-    
-    if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
-      return { days: '-', detail: '无法计算：必要时/立即用药' };
-    }
     
     if (aiResult?.days) {
       return { days: aiResult.days + '天', detail: aiResult.calculation || 'AI计算结果' };
@@ -391,12 +387,25 @@ export default function Home() {
     const specInfo = smartParseSpec(medName, mzgg);
     
     let perBoxQty = specInfo?.perBox || 1;  // 每盒粒数
+    const dosePerUnit = specInfo?.dosePerUnit || jl;  // 优先用药典每粒剂量
+    
+    // 如果没有处方用量，使用药典默认值
+    if (!ypyl && specInfo?.defaultDose) {
+      ypyl = specInfo.defaultDose;
+      ypyldw = specInfo.defaultUnit || 'mg';
+    }
+    
+    // 无法计算的情况
+    if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
+      return { days: '-', detail: '无法计算：必要时/立即用药' };
+    }
+    
     const totalPills = sl * perBoxQty;  // 总粒数
     
     // 计算每日粒数
     let dailyPills = ypyl;
-    if (ypyldw === 'mg' && jl > 0) {
-      dailyPills = ypyl / jl;  // 每日mg ÷ 每粒mg = 每日粒数
+    if (ypyldw === 'mg' && dosePerUnit > 0) {
+      dailyPills = ypyl / dosePerUnit;  // 每日mg ÷ 每粒mg = 每日粒数
     }
     
     if (dailyPills <= 0) {
@@ -412,7 +421,7 @@ export default function Home() {
 2. 规格: ${mzgg?.slice(0, 25)}
 3. 每盒${unit}: ${perBoxQty}
 4. 总量: ${perBoxQty}×${sl}=${totalPills}${unit}
-5. 每${unit}含: ${jl}mg
+5. 每${unit}含: ${dosePerUnit}mg
 6. 每日: ${ypyl}${ypyldw}=${dailyPills.toFixed(2)}${unit}
 7. 天数: ${totalPills}÷${dailyPills.toFixed(2)}=${daysStr}`;
     

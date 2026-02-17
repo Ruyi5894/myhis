@@ -1,18 +1,23 @@
 // 药品规格数据库 - 完整版
 // 用于计算可用天数
 
-export const DRUG_SPEC_DB: Record<string, {
-  perBox: number;  // 每盒/瓶/支 含多少单位
-  unit: string;   // 单位类型: 丸、片、粒、支、袋、ml 等
-}> = {
+export interface DrugSpec {
+  perBox: number;     // 每盒/瓶/支 含多少单位
+  unit: string;       // 单位类型: 丸、片、粒、支、袋、ml 等
+  dosePerUnit?: number;  // 每粒/片/丸含多少mg
+  defaultDose?: number; // 默认每日用量(mg)
+  defaultUnit?: string; // 默认用量单位
+}
+
+export const DRUG_SPEC_DB: Record<string, DrugSpec> = {
   // ========== 丸剂 ==========
-  '麝香保心丸': { perBox: 42, unit: '丸' },
-  '复方丹参滴丸': { perBox: 180, unit: '丸' },
-  '银杏叶滴丸': { perBox: 80, unit: '丸' },
-  '六味地黄丸': { perBox: 360, unit: '丸' },
-  '安脑丸': { perBox: 6, unit: '丸' },
-  '血塞通滴丸': { perBox: 90, unit: '丸' },
-  '通脉滴丸': { perBox: 180, unit: '丸' },
+  '麝香保心丸': { perBox: 42, unit: '丸', dosePerUnit: 22.5, defaultDose: 45, defaultUnit: 'mg' },
+  '复方丹参滴丸': { perBox: 180, unit: '丸', dosePerUnit: 27, defaultDose: 30, defaultUnit: '丸' },
+  '银杏叶滴丸': { perBox: 80, unit: '丸', dosePerUnit: 9.6, defaultDose: 3, defaultUnit: '丸' },
+  '六味地黄丸': { perBox: 360, unit: '丸', defaultDose: 8, defaultUnit: '丸' },
+  '安脑丸': { perBox: 6, unit: '丸', defaultDose: 2, defaultUnit: '丸' },
+  '血塞通滴丸': { perBox: 90, unit: '丸', defaultDose: 3, defaultUnit: '丸' },
+  '通脉滴丸': { perBox: 180, unit: '丸', defaultDose: 30, defaultUnit: '丸' },
   '中风回春片': { perBox: 36, unit: '片' },
   
   // ========== 胶囊剂 ==========
@@ -182,8 +187,14 @@ export function findDrugSpec(medicationName: string): { perBox: number; unit: st
 }
 
 // 智能解析规格
-export function smartParseSpec(medicationName: string, spec: string): { perBox: number; unit: string } | null {
+export function smartParseSpec(medicationName: string, spec: string): DrugSpec | null {
   const localSpec = findDrugSpec(medicationName);
   if (localSpec) return localSpec;
-  return parseSpecFromString(spec);
+  
+  // 尝试从字符串解析
+  const parsed = parseSpecFromString(spec);
+  if (parsed) {
+    return { perBox: parsed.perBox, unit: parsed.unit };
+  }
+  return null;
 }
