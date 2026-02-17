@@ -371,13 +371,13 @@ export default function Home() {
   };
 
   // 计算用药天数
-  // 计算可用天数 - 智能版本
+  // 计算可用天数 - 使用数据库单位
   const calculateDays = (item: any, aiResult?: any): { days: string; detail: string } => {
-    const sl = parseFloat(item.sl) || 0;
+    const sl = parseFloat(item.sl) || 0;  // 数量
     const ypyl = parseFloat(item.ypyl) || 0;  // 每日用量（数值）
     const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
     const mzgg = item.Mzgg || '';  // 规格
-    const jl = parseFloat(item.Jl) || 0;  // 每片剂量(mg)
+    const ypyldw = item.ypyldw?.trim() || '';  // 用量单位（从数据库）
     
     // 如果无法计算
     if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
@@ -392,45 +392,32 @@ export default function Home() {
       };
     }
     
-    // 计算每日次数
-    let timesPerDay = 1;
-    let timesText = '每日1次';
-    if (ypyf.includes('QD') || ypyf === '1' || ypyf === 'QN') {
-      timesPerDay = 1;
-      timesText = '每日1次(QD)';
-    } else if (ypyf.includes('BID') || ypyf === '2') {
-      timesPerDay = 2;
-      timesText = '每日2次(BID)';
-    } else if (ypyf.includes('TID') || ypyf === '3') {
-      timesPerDay = 3;
-      timesText = '每日3次(TID)';
-    } else if (ypyf.includes('QID') || ypyf === '4') {
-      timesPerDay = 4;
-      timesText = '每日4次(QID)';
-    }
-    
     // 智能解析药品规格（本地数据库 + 字符串解析）
     const medName = Array.isArray(item.cfxmmc) ? item.cfxmmc[0] : item.cfxmmc;
     const specInfo = smartParseSpec(medName, mzgg);
     
-    let totalUnits = 0;
-    let unitType = '';
-    let perBoxQty = 0;
+    let perBoxQty = 0;  // 每盒/瓶单位数
+    let unitType = ypyldw || '';  // 优先使用数据库单位
     
     if (specInfo) {
-      // 使用解析出的规格
-      totalUnits = sl * specInfo.perBox;
-      unitType = specInfo.unit;
+      // 使用本地数据库的perBox
       perBoxQty = specInfo.perBox;
+      if (!unitType) {
+        unitType = specInfo.unit;  // 数据库没有则用解析的
+      }
     } else {
-      // 无法解析，使用简化计算（假设每盒1单位）
-      totalUnits = sl;
-      unitType = '单位';
+      // 无法解析，假设每盒1单位
       perBoxQty = 1;
+      if (!unitType) {
+        unitType = '单位';
+      }
     }
     
-    // 计算每日剂量（使用ypyl，即每日用量数值）
-    const dailyDose = ypyl; // 每日用量
+    // 计算总单位数 = 数量 × 每盒单位数
+    const totalUnits = sl * perBoxQty;
+    
+    // 计算每日剂量
+    const dailyDose = ypyl;
     
     if (dailyDose <= 0) {
       return { days: '-', detail: '无法计算：每日用量数据异常' };
@@ -443,9 +430,10 @@ export default function Home() {
     const detail = `计算步骤：
 1. 药品名称: ${medName?.slice(0, 20)}
 2. 规格: ${mzgg?.slice(0, 30)}
-3. 每盒${unitType}数: ${perBoxQty} × 数量${sl} = ${totalUnits}${unitType}
-4. 每日用量: ${dailyDose}${item.ypyldw?.trim() || ''}
-5. 可用天数: ${totalUnits}${unitType} ÷ ${dailyDose} = ${daysStr}`;
+3. 每盒${unitType}数: ${perBoxQty}
+4. 总量: ${perBoxQty} × ${sl} = ${totalUnits}${unitType}
+5. 每日用量: ${dailyDose}${unitType}
+6. 可用天数: ${totalUnits}${unitType} ÷ ${dailyDose} = ${daysStr}`;
     
     return { days: daysStr, detail };
   };
