@@ -480,6 +480,13 @@ export default function Home() {
                 <Pill className="w-4 h-4" />
                 药品剂量管理
               </Link>
+              <Link 
+                href="/drugs/dict"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+              >
+                <Pill className="w-4 h-4" />
+                药品字典(588)
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               <button 
