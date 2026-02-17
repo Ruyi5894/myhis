@@ -1,8 +1,8 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.31',
+  current: '1.7.35',
   name: '卫健委规范版',
-  buildDate: '2026-02-16',
+  buildDate: '2026-02-17',
   author: 'Ruyi',
   description: '门诊病史分析考核系统 - 按卫健委规范组织病史信息',
   features: [
@@ -54,6 +54,11 @@ export const VERSION = {
     { version: '1.7.26', date: '2026-02-16', content: '新增：处方明细增加每日用量列，便于审核计算是否正确' },
     { version: '1.7.27', date: '2026-02-16', content: '修复：每日用量增加mg单位' },
     { version: '1.7.28', date: '2026-02-16', content: '新增：可用天数悬停显示计算步骤' },
+    { version: '1.7.31', date: '2026-02-16', content: '新增：1年用药分析功能' },
+    { version: '1.7.32', date: '2026-02-16', content: '新增：费用监控功能' },
+    { version: '1.7.33', date: '2026-02-16', content: '新增：AI用药数据验证功能' },
+    { version: '1.7.34', date: '2026-02-17', content: '门诊病历页面增加AI验证用药数据按钮' },
+    { version: '1.7.35', date: '2026-02-17', content: '修复诊断显示问题：支持多个诊断；修复AI评分诊断缺失问题' },
   ],
 };
 

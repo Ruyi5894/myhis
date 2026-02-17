@@ -39,6 +39,20 @@ export async function GET(
   try {
     const pool = await getPool();
     
+    // 获取所有诊断信息 - 使用 STRING_AGG 聚合多个诊断
+    const diagnosisResult = await pool.request()
+      .input('zlh', sql.Int, zlh)
+      .query(`
+        SELECT 
+          STRING_AGG(CONVERT(VARCHAR(500), ISNULL(d.zdmc, y.Zdmc)), '; ') AS diagnoses,
+          STRING_AGG(CONVERT(VARCHAR(200), ISNULL(y.Zddm, '')), '; ') AS diagnosisCodes
+        FROM MZYSZ_YSZDK y
+        LEFT JOIN JB_ZDDMK d ON RTRIM(y.Zddm) = RTRIM(d.zddm)
+        WHERE y.zlh = @zlh
+      `);
+    
+    const diagnoses = diagnosisResult.recordset[0];
+    
     // 基本信息 - 关联医生表和科室表获取医生和科室姓名
     const basicResult = await pool.request()
       .input('zlh', sql.Int, zlh)
@@ -149,8 +163,11 @@ export async function GET(
           presentIllness: basic.xbs?.trim() || '-',
           pastHistory: '-',
           physicalExam: basic.Tj?.trim() || '-',
-          preliminaryDiagnosis: basic.Zdmc?.trim() || '-',
-          diagnosisCode: basic.Zddm?.trim() || '-',
+          preliminaryDiagnosis: diagnoses?.diagnoses?.trim() || basic.Zdmc?.trim() || '-',
+          diagnosisCode: diagnoses?.diagnosisCodes?.trim() || basic.Zddm?.trim() || '-',
+          // 新增：多个诊断的数组
+          diagnoses: diagnoses?.diagnoses?.split('; ').filter((d: string) => d) || [basic.Zdmc?.trim()].filter(Boolean),
+          diagnosisCodes: diagnoses?.diagnosisCodes?.split('; ').filter((d: string) => d) || [basic.Zddm?.trim()].filter(Boolean),
           treatment: basic.Bz?.trim() || '-',
         },
         vitalSigns: {

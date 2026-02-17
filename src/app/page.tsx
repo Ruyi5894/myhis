@@ -62,6 +62,8 @@ interface PatientDetail {
     physicalExam: string;
     preliminaryDiagnosis: string;
     diagnosisCode: string;
+    diagnoses?: string[];  // 新增：多个诊断
+    diagnosisCodes?: string[];  // 新增：多个诊断代码
     treatment: string;
   };
   vitalSigns: {
@@ -277,7 +279,7 @@ export default function Home() {
             presentIllness: patient.medicalRecord.presentIllness,
             pastHistory: patient.medicalRecord.pastHistory,
             physicalExam: patient.medicalRecord.physicalExam,
-            diagnosis: patient.medicalRecord.preliminaryDiagnosis,
+            diagnosis: patient.medicalRecord.diagnoses?.join('; ') || patient.medicalRecord.preliminaryDiagnosis,
             treatment: patient.medicalRecord.treatment,
           },
           weights: scoringWeights.map(c => `${c.name}（${c.weight}分）：${c.description}`),
@@ -869,14 +871,33 @@ export default function Home() {
                     <p className="text-gray-900">{selectedPatient.medicalRecord.physicalExam}</p>
                   </div>
 
-                  {/* 初步诊断 */}
+                  {/* 初步诊断 - 支持多个诊断 */}
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Stethoscope className="w-4 h-4 text-blue-600" />
                       <span className="text-sm font-medium text-blue-600">初步诊断</span>
+                      {selectedPatient.medicalRecord.diagnoses && selectedPatient.medicalRecord.diagnoses.length > 1 && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          共{selectedPatient.medicalRecord.diagnoses.length}个
+                        </span>
+                      )}
                     </div>
-                    <p className="font-semibold text-gray-900">{selectedPatient.medicalRecord.preliminaryDiagnosis}</p>
-                    <p className="text-sm text-gray-500 font-mono mt-1">诊断代码: {selectedPatient.medicalRecord.diagnosisCode}</p>
+                    <div className="space-y-2">
+                      {selectedPatient.medicalRecord.diagnoses && selectedPatient.medicalRecord.diagnoses.length > 0 ? (
+                        selectedPatient.medicalRecord.diagnoses.map((diag, idx) => (
+                          <div key={idx} className="flex items-start gap-2">
+                            <span className="font-semibold text-gray-900">{idx + 1}. {diag}</span>
+                            {selectedPatient.medicalRecord.diagnosisCodes && selectedPatient.medicalRecord.diagnosisCodes[idx] && (
+                              <span className="text-xs text-gray-500 font-mono">
+                                ({selectedPatient.medicalRecord.diagnosisCodes[idx]})
+                              </span>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="font-semibold text-gray-900">{selectedPatient.medicalRecord.preliminaryDiagnosis}</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* 处理措施 */}
