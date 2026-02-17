@@ -8,7 +8,7 @@ import {
   StickyNote, Activity, ClipboardList, Star, Settings, AlertTriangle, Sparkles
 } from 'lucide-react';
 import SCORING_CONFIG from '@/config/scoring';
-import { findDrugSpec } from '@/config/drugSpec';
+import { smartParseSpec } from '@/config/drugSpec';
 
 interface ScoringCategory {
   id: string;
@@ -408,28 +408,24 @@ export default function Home() {
       timesText = '每日4次(QID)';
     }
     
-    // 优先从本地数据库查找药品规格
+    // 智能解析药品规格（本地数据库 + 字符串解析）
     const medName = Array.isArray(item.cfxmmc) ? item.cfxmmc[0] : item.cfxmmc;
-    const localSpec = findDrugSpec(medName);
+    const specInfo = smartParseSpec(medName, mzgg);
     
     let totalUnits = 0;
     let unitType = '';
+    let perBoxQty = 0;
     
-    if (localSpec) {
-      // 使用本地数据库规格
-      totalUnits = sl * localSpec.perBox;
-      unitType = localSpec.unit;
+    if (specInfo) {
+      // 使用解析出的规格
+      totalUnits = sl * specInfo.perBox;
+      unitType = specInfo.unit;
+      perBoxQty = specInfo.perBox;
     } else {
-      // 从规格字符串解析
-      const specParsed = parseSpecFromString(mzgg);
-      if (specParsed) {
-        totalUnits = sl * specParsed.perBox;
-        unitType = specParsed.unit;
-      } else {
-        // 无法解析，使用简化计算（假设每盒1单位）
-        totalUnits = sl;
-        unitType = '单位';
-      }
+      // 无法解析，使用简化计算（假设每盒1单位）
+      totalUnits = sl;
+      unitType = '单位';
+      perBoxQty = 1;
     }
     
     // 计算每日剂量（使用ypyl，即每日用量数值）
@@ -446,7 +442,7 @@ export default function Home() {
     const detail = `计算步骤：
 1. 药品名称: ${medName?.slice(0, 20)}
 2. 规格: ${mzgg?.slice(0, 30)}
-3. 每盒${unitType}数: ${localSpec?.perBox || '?'} × 数量${sl} = ${totalUnits}${unitType}
+3. 每盒${unitType}数: ${perBoxQty} × 数量${sl} = ${totalUnits}${unitType}
 4. 每日用量: ${dailyDose}${item.ypyldw?.trim() || ''}
 5. 可用天数: ${totalUnits}${unitType} ÷ ${dailyDose} = ${daysStr}`;
     
@@ -454,14 +450,6 @@ export default function Home() {
   };
   
   // 辅助函数：从规格字符串解析
-  const parseSpecFromString = (spec: string): { perBox: number; unit: string } | null => {
-    if (!spec) return null;
-    const match = spec.match(/(\d+)\s*(丸|片|粒|支|袋|ml|毫升|mL|g|mg)/i);
-    if (match) {
-      return { perBox: parseInt(match[1], 10), unit: match[2] };
-    }
-    return null;
-  };
 
   const setQuickDateRange = (range: string) => {
     const today = new Date();
