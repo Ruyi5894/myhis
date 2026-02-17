@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.42',
+  current: '1.7.43',
   name: '卫健委规范版',
   buildDate: '2026-02-17',
   author: 'Ruyi',
@@ -60,7 +60,8 @@ export const VERSION = {
     { version: '1.7.34', date: '2026-02-17', content: '门诊病历页面增加AI验证用药数据按钮' },
     { version: '1.7.35', date: '2026-02-17', content: '修复诊断显示问题：支持多个诊断；修复AI评分诊断缺失问题' },
     { version: '1.7.39', date: '2026-02-17', content: '首页删除统计卡片；查体分为生命体征和体格检查；修复每日用量单位；删除AI评分亮点' },
-    { version: '1.7.42', date: '2026-02-17', content: '扩充药品规格数据库至127种，覆盖常见口服、外用、注射等药品' },
+    { version: '1.7.43', date: '2026-02-17', content: '药品规格数据库优化，改进解析逻辑' },
+    { version: '1.7.42', date: '2026-02-17', content: '扩充药品规格数据库至127种' },
     { version: '1.7.41', date: '2026-02-17', content: '完善药品规格数据库(150+种)' },
     { version: '1.7.40', date: '2026-02-17', content: '新增AI重新计算可用天数功能' },
   ],

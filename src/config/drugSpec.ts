@@ -4,7 +4,6 @@
 export const DRUG_SPEC_DB: Record<string, {
   perBox: number;  // 每盒/瓶/支 含多少单位
   unit: string;   // 单位类型: 丸、片、粒、支、袋、ml 等
-  source?: string; // 数据来源: ai=AI分析, known=已知
 }> = {
   // ========== 丸剂 ==========
   '麝香保心丸': { perBox: 42, unit: '丸' },
@@ -12,9 +11,9 @@ export const DRUG_SPEC_DB: Record<string, {
   '银杏叶滴丸': { perBox: 80, unit: '丸' },
   '六味地黄丸': { perBox: 360, unit: '丸' },
   '安脑丸': { perBox: 6, unit: '丸' },
-  '中风回春片': { perBox: 36, unit: '片' },
   '血塞通滴丸': { perBox: 90, unit: '丸' },
   '通脉滴丸': { perBox: 180, unit: '丸' },
+  '中风回春片': { perBox: 36, unit: '片' },
   
   // ========== 胶囊剂 ==========
   '芪苈强心胶囊': { perBox: 36, unit: '粒' },
