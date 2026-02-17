@@ -8,6 +8,7 @@ import {
   StickyNote, Activity, ClipboardList, Star, Settings, AlertTriangle, Sparkles
 } from 'lucide-react';
 import SCORING_CONFIG from '@/config/scoring';
+import { findDrugSpec } from '@/config/drugSpec';
 
 interface ScoringCategory {
   id: string;
@@ -117,6 +118,8 @@ export default function Home() {
   const [selectedPatientForScoring, setSelectedPatientForScoring] = useState<PatientDetail | null>(null);
   const [medicationAnalysis, setMedicationAnalysis] = useState<any>(null);
   const [medicationAnalysisLoading, setMedicationAnalysisLoading] = useState(false);
+  const [aiCalculatedDays, setAiCalculatedDays] = useState<Record<string, any>>({});
+  const [aiCalculatingDays, setAiCalculatingDays] = useState<Record<string, boolean>>({});
   const [aiMedicationAnalysis, setAiMedicationAnalysis] = useState<any>(null);
   const [aiMedicationAnalysisLoading, setAiMedicationAnalysisLoading] = useState(false);
   const [medVerifyResult, setMedVerifyResult] = useState<any>(null);
@@ -336,29 +339,59 @@ export default function Home() {
     return str || '-';
   };
 
+  // 使用AI计算用药天数（处理复杂情况）
+  const calculateDaysWithAI = async (item: any, zlh: number) => {
+    const key = `${zlh}-${item.cfxh}-${item.cfmxxh}`;
+    if (aiCalculatingDays[key]) return; // 防止重复请求
+    
+    setAiCalculatingDays(prev => ({ ...prev, [key]: true }));
+    
+    try {
+      const res = await fetch(`/api/patients/${zlh}/calculateDays`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicationName: item.cfxmmc,
+          spec: item.Mzgg,
+          quantity: item.sl,
+          usage: item.ypsypldm?.trim(),
+          dailyDose: item.ypyl,
+          doseUnit: item.ypyldw?.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiCalculatedDays(prev => ({ ...prev, [key]: data.data }));
+      }
+    } catch (error) {
+      console.error('AI计算失败:', error);
+    }
+    setAiCalculatingDays(prev => ({ ...prev, [key]: false }));
+  };
+
   // 计算用药天数
-  const calculateDays = (item: any): { days: string; detail: string } => {
+  // 计算可用天数 - 智能版本
+  const calculateDays = (item: any, aiResult?: any): { days: string; detail: string } => {
     const sl = parseFloat(item.sl) || 0;
-    const ypyl = parseFloat(item.ypyl) || 0;
+    const ypyl = parseFloat(item.ypyl) || 0;  // 每日用量（数值）
     const ypyf = item.ypsypldm?.trim().toUpperCase() || '';
-    const mzgg = item.Mzgg || '';
+    const mzgg = item.Mzgg || '';  // 规格
+    const jl = parseFloat(item.Jl) || 0;  // 每片剂量(mg)
     
     // 如果无法计算
     if (!ypyl || ypyf === 'PRN' || ypyf === 'SOS' || ypyf === 'ST') {
       return { days: '-', detail: '无法计算：必要时/立即用药' };
     }
     
-    // 解析每盒/瓶片数
-    let pillsPerBox = 1;
-    const boxMatch = mzgg.match(/(\d+)\s*片/);
-    if (boxMatch) {
-      pillsPerBox = parseInt(boxMatch[1], 10);
+    // 如果有AI结果，优先使用AI结果
+    if (aiResult?.days) {
+      return { 
+        days: aiResult.days + '天', 
+        detail: aiResult.calculation || 'AI计算结果' 
+      };
     }
     
-    // 计算总片数
-    const totalPills = sl * pillsPerBox;
-    
-    // 计算每日片数
+    // 计算每日次数
     let timesPerDay = 1;
     let timesText = '每日1次';
     if (ypyf.includes('QD') || ypyf === '1' || ypyf === 'QN') {
@@ -375,27 +408,59 @@ export default function Home() {
       timesText = '每日4次(QID)';
     }
     
-    // 每日剂量(mg) = 每日片数 * 每片剂量
-    const jl = parseFloat(item.Jl) || 0;
-    const dailyDoseMg = timesPerDay * jl;
+    // 优先从本地数据库查找药品规格
+    const medName = Array.isArray(item.cfxmmc) ? item.cfxmmc[0] : item.cfxmmc;
+    const localSpec = findDrugSpec(medName);
     
-    if (dailyDoseMg <= 0) {
-      return { days: '-', detail: '无法计算：剂量数据异常' };
+    let totalUnits = 0;
+    let unitType = '';
+    
+    if (localSpec) {
+      // 使用本地数据库规格
+      totalUnits = sl * localSpec.perBox;
+      unitType = localSpec.unit;
+    } else {
+      // 从规格字符串解析
+      const specParsed = parseSpecFromString(mzgg);
+      if (specParsed) {
+        totalUnits = sl * specParsed.perBox;
+        unitType = specParsed.unit;
+      } else {
+        // 无法解析，使用简化计算（假设每盒1单位）
+        totalUnits = sl;
+        unitType = '单位';
+      }
     }
     
-    // 可用天数 = 总mg / 每日mg
-    const totalMg = totalPills * jl;
-    const days = totalMg / dailyDoseMg;
+    // 计算每日剂量（使用ypyl，即每日用量数值）
+    const dailyDose = ypyl; // 每日用量
     
+    if (dailyDose <= 0) {
+      return { days: '-', detail: '无法计算：每日用量数据异常' };
+    }
+    
+    // 可用天数 = 总单位 / 每日用量
+    const days = totalUnits / dailyDose;
     const daysStr = days < 1 ? Math.round(days * 10) / 10 + '天' : Math.round(days) + '天';
     
     const detail = `计算步骤：
-1. 数量 × 每盒片数 = ${sl} × ${pillsPerBox} = ${totalPills}片（总片数）
-2. ${totalPills}片 × ${jl}mg = ${totalMg}mg（总剂量）
-3. ${timesText} × ${jl}mg = ${dailyDoseMg}mg（每日剂量）
-4. ${totalMg}mg ÷ ${dailyDoseMg}mg = ${daysStr}`;
+1. 药品名称: ${medName?.slice(0, 20)}
+2. 规格: ${mzgg?.slice(0, 30)}
+3. 每盒${unitType}数: ${localSpec?.perBox || '?'} × 数量${sl} = ${totalUnits}${unitType}
+4. 每日用量: ${dailyDose}${item.ypyldw?.trim() || ''}
+5. 可用天数: ${totalUnits}${unitType} ÷ ${dailyDose} = ${daysStr}`;
     
     return { days: daysStr, detail };
+  };
+  
+  // 辅助函数：从规格字符串解析
+  const parseSpecFromString = (spec: string): { perBox: number; unit: string } | null => {
+    if (!spec) return null;
+    const match = spec.match(/(\d+)\s*(丸|片|粒|支|袋|ml|毫升|mL|g|mg)/i);
+    if (match) {
+      return { perBox: parseInt(match[1], 10), unit: match[2] };
+    }
+    return null;
   };
 
   const setQuickDateRange = (range: string) => {
@@ -565,58 +630,6 @@ export default function Home() {
               搜索
             </button>
           </form>
-        </div>
-
-        {/* 统计信息 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">时间范围</p>
-                <p className="text-sm font-semibold text-gray-900">{startDate} 至 {endDate}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">就诊人数</p>
-                <p className="text-sm font-semibold text-gray-900">{total} 人</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">处方总额</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  ¥ {patients.reduce((sum, p) => sum + (p.cfje || 0), 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Pill className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">处方数量</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {patients.reduce((sum, p) => sum + (p.cf_count || 0), 0)} 张
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* 患者列表 */}
@@ -1044,16 +1057,59 @@ export default function Home() {
                                 </td>
                                 <td className="px-4 py-2 text-center">
                                   {(() => {
+                                    const zlh = selectedPatient.basicInfo?.zlh || selectedPatient.zlh || 0;
+                                    const key = `${zlh}-${item.cfxh}-${item.cfmxxh}`;
+                                    const aiResult = aiCalculatedDays[key];
+                                    const isCalculating = aiCalculatingDays[key];
+                                    
+                                    // 如果有AI计算结果，显示AI结果
+                                    if (aiResult?.days) {
+                                      return (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="text-purple-600 font-medium">
+                                            {aiResult.days}天
+                                          </span>
+                                          <button
+                                            onClick={() => calculateDaysWithAI(item, zlh)}
+                                            className="text-xs text-purple-500 hover:text-purple-700 underline"
+                                          >
+                                            重新计算
+                                          </button>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // 如果正在计算
+                                    if (isCalculating) {
+                                      return (
+                                        <div className="flex items-center justify-center gap-1">
+                                          <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                          <span className="text-purple-500 text-xs">AI计算中...</span>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // 否则显示计算结果，并有AI重算按钮
                                     const { days, detail } = calculateDays(item);
-                                    return days === '-' ? (
-                                      <span className="text-gray-400">{days}</span>
-                                    ) : (
-                                      <span 
-                                        className="text-blue-600 font-medium cursor-help border-b border-dashed border-blue-400"
-                                        title={detail}
-                                      >
-                                        {days}
-                                      </span>
+                                    return (
+                                      <div className="flex flex-col items-center gap-1">
+                                        {days === '-' ? (
+                                          <span className="text-gray-400">{days}</span>
+                                        ) : (
+                                          <span 
+                                            className="text-blue-600 font-medium cursor-help border-b border-dashed border-blue-400"
+                                            title={detail}
+                                          >
+                                            {days}
+                                          </span>
+                                        )}
+                                        <button
+                                          onClick={() => calculateDaysWithAI(item, zlh)}
+                                          className="text-xs text-gray-400 hover:text-purple-500"
+                                        >
+                                          AI重算
+                                        </button>
+                                      </div>
                                     );
                                   })()}
                                 </td>
