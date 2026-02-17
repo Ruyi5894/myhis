@@ -485,7 +485,7 @@ export default function Home() {
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
               >
                 <Pill className="w-4 h-4" />
-                药品字典(588)
+                药品字典(9606)
               </Link>
             </div>
             <div className="flex items-center gap-4">
