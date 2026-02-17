@@ -1,6 +1,6 @@
 // 版本管理配置
 export const VERSION = {
-  current: '1.7.35',
+  current: '1.7.39',
   name: '卫健委规范版',
   buildDate: '2026-02-17',
   author: 'Ruyi',
@@ -59,6 +59,7 @@ export const VERSION = {
     { version: '1.7.33', date: '2026-02-16', content: '新增：AI用药数据验证功能' },
     { version: '1.7.34', date: '2026-02-17', content: '门诊病历页面增加AI验证用药数据按钮' },
     { version: '1.7.35', date: '2026-02-17', content: '修复诊断显示问题：支持多个诊断；修复AI评分诊断缺失问题' },
+    { version: '1.7.39', date: '2026-02-17', content: '首页删除统计卡片；查体分为生命体征和体格检查；修复每日用量单位；删除AI评分亮点' },
   ],
 };
 

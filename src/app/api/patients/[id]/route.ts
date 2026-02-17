@@ -112,6 +112,7 @@ export async function GET(
         m.ypyf,
         m.ypsypldm,
         m.ypyl,
+        m.ypyldw,
         ISNULL(m.cfxmmc, x.Mxxmmc) AS cfxmmc
       FROM MZYSZ_CFMXK m
       INNER JOIN JB_SFXMMXK x ON RTRIM(m.cfxmdm) = RTRIM(x.Mxxmdm)

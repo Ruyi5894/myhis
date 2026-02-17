@@ -956,10 +956,10 @@ export default function Home() {
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">5</span>
-                    <h3 className="text-lg font-semibold text-gray-900">处方信息</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">处方明细</h3>
                   </div>
                   
-                  {/* 费用汇总 */}
+                  {/* 费用汇总 
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="bg-gray-50 rounded-lg p-4 text-center">
                       <p className="text-xs text-gray-500 mb-1">处方数量</p>
@@ -978,8 +978,9 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
+                  */}
 
-                  {/* 处方列表 */}
+                  {/* 处方列表 
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
                       <p className="text-sm font-medium text-gray-700">处方列表</p>
@@ -1009,6 +1010,7 @@ export default function Home() {
                       </table>
                     </div>
                   </div>
+                  */}
 
                   {/* 处方明细 */}
                   {selectedPatient.prescriptionDetails && selectedPatient.prescriptionDetails.length > 0 && (
@@ -1038,7 +1040,7 @@ export default function Home() {
                                   {formatText(item.ypsypldm)}
                                 </td>
                                 <td className="px-4 py-2 text-center text-gray-600">
-                                  {item.ypyl ? item.ypyl + 'mg' : '-'}
+                                  {item.ypyl ? item.ypyl + (item.ypyldw?.trim() || '') : '-'}
                                 </td>
                                 <td className="px-4 py-2 text-center">
                                   {(() => {
